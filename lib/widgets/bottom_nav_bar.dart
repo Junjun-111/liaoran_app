@@ -1,0 +1,193 @@
+import 'dart:ui' as ui;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+import '../theme/app_theme.dart';
+
+/// 底部悬浮毛玻璃胶囊导航：5 个导航项 + 右侧玻璃添加按钮
+///
+/// [currentIndex] 控制选中项（0~4，对应 首页/订阅/心愿/资产/我的）。
+/// [onTap] 为点击回调，参数为被点击项的索引。
+class BottomNavBar extends StatelessWidget {
+  const BottomNavBar({
+    super.key,
+    this.currentIndex = 0,
+    this.onTap,
+  });
+
+  final int currentIndex;
+  final ValueChanged<int>? onTap;
+
+  static const _icons = [
+    'assets/CodeBuddyAssets/14_89/5.svg',
+    'assets/CodeBuddyAssets/14_89/6.svg',
+    'assets/CodeBuddyAssets/14_89/7.svg',
+    'assets/CodeBuddyAssets/14_89/8.svg',
+    'assets/CodeBuddyAssets/14_89/9.svg',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 66,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // 毛玻璃胶囊
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(33),
+              child: BackdropFilter(
+                filter: ui.ImageFilter.blur(sigmaX: 11, sigmaY: 11),
+                child: Container(
+                  height: 66,
+                  padding: const EdgeInsets.symmetric(horizontal: 11),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.50),
+                    borderRadius: BorderRadius.circular(33),
+                    border: Border.all(color: AppColors.cardStroke, width: 1.0),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: AppColors.cardShadowPrimary,
+                        blurRadius: 22,
+                        offset: Offset(0, 11),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      for (var i = 0; i < _icons.length; i++)
+                        _NavItem(
+                          key: ValueKey('nav_$i'),
+                          asset: _icons[i],
+                          selected: i == currentIndex,
+                          onTap: onTap == null ? null : () => onTap!(i),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 5),
+          _AddButton(
+            key: const ValueKey('nav_add'),
+            onTap: onTap == null ? null : () => onTap!(-1),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 单个导航项；选中态为玻璃圆圈
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    super.key,
+    required this.asset,
+    this.selected = false,
+    this.onTap,
+  });
+
+  final String asset;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 40.0;
+    const iconSize = 24.0;
+    final radius = size / 2;
+    final iconColor = selected ? AppColors.primary : AppColors.textHint;
+    final icon = SvgPicture.asset(
+      asset,
+      width: iconSize,
+      height: iconSize,
+      colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+    );
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: selected
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(radius),
+              child: BackdropFilter(
+                filter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                child: Container(
+                  width: size,
+                  height: size,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.navSelectedBg,
+                    borderRadius: BorderRadius.circular(radius),
+                    border: Border.all(
+                        color: AppColors.navSelectedStroke, width: 1.0),
+                  ),
+                  child: icon,
+                ),
+              ),
+            )
+          : Container(
+              width: size,
+              height: size,
+              alignment: Alignment.center,
+              child: icon,
+            ),
+    );
+  }
+}
+
+/// 右侧圆形添加按钮：玻璃拟态
+class _AddButton extends StatelessWidget {
+  const _AddButton({super.key, this.onTap});
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipOval(
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+          child: Container(
+            width: 66,
+            height: 66,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  AppColors.navAddGreen.withValues(alpha: 0.80),
+                  AppColors.navAddGreen.withValues(alpha: 0.95),
+                ],
+              ),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.35),
+                width: 1.0,
+              ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x3310B981),
+                  blurRadius: 12,
+                  offset: Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Center(
+              child: SvgPicture.asset(
+                'assets/CodeBuddyAssets/14_89/10.svg',
+                width: 26,
+                height: 26,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
