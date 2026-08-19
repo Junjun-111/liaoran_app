@@ -80,9 +80,37 @@ class _AddFlowPageState extends State<AddFlowPage> {
   Future<void> _changeIcon(int tab) async {
     final source = await _pickPhotoSource();
     if (source == null || !mounted) return;
+
+    // emoji 图标：输入一个 emoji 直接作为主图，不走抠图流程
+    if (source == 'emoji') {
+      final emoji = await _pickEmoji();
+      if (emoji == null || !mounted) return;
+      setState(() {
+        if (tab == 0) {
+          _assetIcon = emojiIcon(emoji);
+        } else if (tab == 1) {
+          _subIcon = emojiIcon(emoji);
+        } else {
+          _wishIcon = emojiIcon(emoji);
+        }
+      });
+      showTopSnackBar(context, '已设为图标');
+      return;
+    }
+
+    // 拍照 / 相册选择：先选图，再进入 AI 抠图调整页
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: source == 'camera' ? ImageSource.camera : ImageSource.gallery,
+      maxWidth: 1600,
+      maxHeight: 1600,
+      imageQuality: 90,
+    );
+    final path = picked?.path;
+    if (path == null || !mounted) return;
     final result = await Navigator.of(context).push<String>(
       MaterialPageRoute(
-        builder: (_) => IconMattingEditorPage(sourcePath: source),
+        builder: (_) => IconMattingEditorPage(sourcePath: path),
       ),
     );
     if (result == null || !mounted) return;
@@ -96,6 +124,14 @@ class _AddFlowPageState extends State<AddFlowPage> {
       }
     });
     showTopSnackBar(context, 'AI 抠图完成，已设为图标');
+  }
+
+  /// 弹窗输入一个 emoji；只允许单个 emoji，取消返回 null。
+  Future<String?> _pickEmoji() async {
+    return showDialog<String>(
+      context: context,
+      builder: (_) => const _EmojiInputDialog(),
+    );
   }
 
   Future<String?> _pickPhotoSource() async {
@@ -159,20 +195,19 @@ class _AddFlowPageState extends State<AddFlowPage> {
                 value: 'gallery',
                 onSelected: (v) => Navigator.of(sheetCtx).pop(v),
               ),
+              const SizedBox(height: 8),
+              _PhotoSourceRow(
+                icon: Icons.emoji_emotions_outlined,
+                title: '输入 emoji',
+                value: 'emoji',
+                onSelected: (v) => Navigator.of(sheetCtx).pop(v),
+              ),
             ],
           ),
         ),
       ),
     );
-    if (action == null) return null;
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: action == 'camera' ? ImageSource.camera : ImageSource.gallery,
-      maxWidth: 1600,
-      maxHeight: 1600,
-      imageQuality: 90,
-    );
-    return picked?.path;
+    return action;
   }
 
   bool get _isEditing =>
@@ -536,7 +571,12 @@ class _IconPreview extends StatelessWidget {
   final VoidCallback onTap;
 
   bool get _isPhoto =>
-      icon != null && icon!.isNotEmpty && !icon!.endsWith('.svg');
+      icon != null &&
+      icon!.isNotEmpty &&
+      !icon!.endsWith('.svg') &&
+      !isEmojiIconPath(icon);
+
+  bool get _isEmoji => isEmojiIconPath(icon);
 
   @override
   Widget build(BuildContext context) {
@@ -547,7 +587,12 @@ class _IconPreview extends StatelessWidget {
         padding: const EdgeInsets.only(top: 26.9, bottom: 17.9),
         child: Column(
           children: [
-            _isPhoto
+            _isEmoji
+                ? EmojiIconSquare(
+                    emoji: emojiFromIconPath(icon)!,
+                    size: 89.6,
+                  )
+                : _isPhoto
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: Image.file(
@@ -2520,3 +2565,151 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
       );
     }
   }
+
+/// 输入 emoji 的弹窗：自己持有输入框控制器，随弹窗销毁时释放，
+/// 避免在关闭动画期间销毁控制器触发框架断言。
+class _EmojiInputDialog extends StatefulWidget {
+  const _EmojiInputDialog();
+
+  @override
+  State<_EmojiInputDialog> createState() => _EmojiInputDialogState();
+}
+
+class _EmojiInputDialogState extends State<_EmojiInputDialog> {
+  final _controller = TextEditingController();
+  String _error = '';
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final text = _controller.text.trim();
+    final length = text.characters.length;
+    if (text.isEmpty) {
+      setState(() => _error = '请输入一个 emoji');
+      return;
+    }
+    if (length != 1) {
+      setState(() => _error = '只能输入一个 emoji');
+      return;
+    }
+    Navigator.of(context).pop(text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Text(
+        '输入 emoji',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontFamily: AppFonts.manrope,
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
+          color: AppColors.textPrimary,
+        ),
+      ),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        inputFormatters: const [_EmojiOnlyInputFormatter()],
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 28, height: 1.2),
+        onChanged: (_) {
+          if (_error.isNotEmpty) setState(() => _error = '');
+        },
+        decoration: InputDecoration(
+          hintText: '例如 📱',
+          hintStyle: const TextStyle(
+            fontFamily: AppFonts.manrope,
+            fontSize: 20,
+            color: AppColors.textHint,
+          ),
+          errorText: _error.isEmpty ? null : _error,
+          errorStyle: const TextStyle(
+            fontFamily: AppFonts.manrope,
+            fontSize: 12,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFE3E8E6)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(
+              color: Color(0xFF3DC88A),
+              width: 1.5,
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text(
+            '取消',
+            style: TextStyle(
+              fontFamily: AppFonts.manrope,
+              color: AppColors.textHint,
+            ),
+          ),
+        ),
+        TextButton(
+          onPressed: _submit,
+          child: const Text(
+            '确定',
+            style: TextStyle(
+              fontFamily: AppFonts.manrope,
+              fontWeight: FontWeight.w800,
+              color: _C.primary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 只允许 emoji 字符输入：文字、数字等其他内容一律在输入框内不显示。
+class _EmojiOnlyInputFormatter extends TextInputFormatter {
+  const _EmojiOnlyInputFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final filtered = newValue.text.characters
+        .where(_isEmojiCluster)
+        .join();
+    if (filtered == newValue.text) return newValue;
+    return TextEditingValue(
+      text: filtered,
+      selection: TextSelection.collapsed(
+        offset: filtered.characters.length,
+      ),
+    );
+  }
+}
+
+bool _isEmojiCluster(String cluster) {
+  final runes = cluster.runes.toList();
+  return runes.isNotEmpty && runes.any(_isEmojiCodePoint);
+}
+
+bool _isEmojiCodePoint(int r) {
+  return (r >= 0x1F000 && r <= 0x1FAFF) || // Emoji 主要区块（含手机 📱）
+      (r >= 0x1F1E6 && r <= 0x1F1FF) || // 区域指示符（旗帜）
+      (r >= 0x2600 && r <= 0x27BF) || // 杂项符号与装饰符号
+      (r >= 0x2B00 && r <= 0x2BFF) || // 杂项符号与箭头
+      (r >= 0x2190 && r <= 0x21FF) || // 箭头
+      (r >= 0x1F3FB && r <= 0x1F3FF) || // 肤色修饰符
+      r == 0xFE0F || // 变体选择符
+      r == 0x200D || // 零宽连接符（组合 emoji）
+      r == 0x20E3; // 组合围键帽（数字键帽表情）
+}

@@ -126,7 +126,7 @@ void main() {
     expect(SubscriptionStore.instance.items.first.name, 'Netflix 高级版');
   });
 
-  testWidgets('第17步 订阅左滑删除', (WidgetTester tester) async {
+  testWidgets('第17步 订阅长按删除', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(440, 1400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -152,7 +152,11 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('nav_1')));
     await tester.pumpAndSettle();
 
-    await tester.drag(find.text('iCloud+'), const Offset(-600, 0));
+    await tester.longPress(find.text('iCloud+'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('确认删除'));
     await tester.pumpAndSettle();
     expect(SubscriptionStore.instance.isEmpty, isTrue);
     expect(find.text('还没有订阅'), findsOneWidget);
@@ -233,7 +237,7 @@ void main() {
     expect(find.text('重新开启'), findsOneWidget);
   });
 
-  testWidgets('第20步 我的资产页：列表、左滑删除、空状态', (WidgetTester tester) async {
+  testWidgets('第20步 我的资产页：列表、长按删除、空状态', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(440, 1400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -257,7 +261,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('共 1 件资产'), findsOneWidget);
-    await tester.drag(find.text('MacBook'), const Offset(-600, 0));
+    await tester.longPress(find.text('MacBook'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('确认删除'));
     await tester.pumpAndSettle();
     expect(AssetStore.instance.isEmpty, isTrue);
     expect(find.text('资产空空'), findsOneWidget);

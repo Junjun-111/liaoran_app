@@ -10,6 +10,7 @@ import '../state/settings_store.dart';
 import '../state/subscription_store.dart';
 import '../theme/app_theme.dart';
 import '../widgets/item_icon.dart';
+import '../widgets/long_press_delete_card.dart';
 import '../widgets/page_scaffold.dart';
 import '../widgets/primary_cta_button.dart';
 import 'add_flow_page.dart';
@@ -292,7 +293,7 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
-/// 订阅卡片：图标 + 名称/平台 + 金额 + 状态，左滑删除、点击看详情
+/// 订阅卡片：图标 + 名称/平台 + 金额 + 状态，长按删除、点击看详情
 class _SubscriptionCard extends StatelessWidget {
   const _SubscriptionCard({
     required this.subscription,
@@ -336,23 +337,13 @@ class _SubscriptionCard extends StatelessWidget {
       currency: sub.currency,
     );
 
-    return Dismissible(
+    return LongPressDeleteCard(
       key: ValueKey(sub.id),
-      direction: DismissDirection.endToStart,
-      onDismissed: (_) => onDelete(),
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(
-          color: const Color(0xFFE5484D),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: const Icon(Icons.delete_outline, color: Colors.white),
-      ),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => _showDetail(context),
-        child: Container(
+      onTap: () => _showDetail(context),
+      onDelete: onDelete,
+      title: '删除订阅',
+      message: '删除后不可恢复，确认要删除该订阅吗？',
+      child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: AppColors.cardWhite,
@@ -454,7 +445,6 @@ class _SubscriptionCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
     );
   }
 }

@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:local_auth/local_auth.dart';
 
 import '../domain/dictionaries.dart';
+import '../services/lock_gate.dart';
 import '../services/upload_service.dart';
 import '../state/settings_store.dart';
 import '../theme/app_theme.dart';
@@ -141,10 +142,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ],
               ),
               const SizedBox(height: 20),
-              _LockButton(
-                locked: settings.lockEnabled,
-                onTap: () => _handleLock(context),
-              ),
+              _LockButton(onTap: () => _handleLock(context)),
               const SizedBox(height: 16),
               const _Signature(),
             ],
@@ -318,25 +316,15 @@ class _ProfilePageState extends State<ProfilePage> {
         }
         return;
       }
-      final ok = await auth.authenticate(
-        localizedReason: settings.lockEnabled ? '请验证指纹以关闭应用锁' : '请验证指纹以开启应用锁',
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
-        ),
-      );
-      if (ok != true || !context.mounted) return;
 
-      if (settings.lockEnabled) {
-        settings.disableLock();
-        _snack(context, '已关闭锁定');
-      } else {
-        settings.enableLock('');
-        // 锁定页本身就是反馈，不再弹 SnackBar（避免与路由转场 Hero 冲突）
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const LockScreen()),
-        );
-      }
+      // 立即锁定：开启指纹锁并强制下次进入也要验证；
+      // 锁定页本身就是反馈，需要指纹才能回到应用
+      settings.enableLock('');
+      await LockGate.lockNow();
+      if (!context.mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const LockScreen()),
+      );
     } catch (_) {
       if (context.mounted) {
         _snack(context, '无法启动系统识别，请重试');
@@ -885,9 +873,8 @@ class _SettingsItem extends StatelessWidget {
 
 /// 红色"立即锁定"按钮（已开启时变为关闭入口）
 class _LockButton extends StatelessWidget {
-  const _LockButton({required this.locked, required this.onTap});
+  const _LockButton({required this.onTap});
 
-  final bool locked;
   final VoidCallback onTap;
 
   @override
@@ -910,9 +897,9 @@ class _LockButton extends StatelessWidget {
               height: 20,
             ),
             const SizedBox(width: 6),
-            Text(
-              locked ? '锁定已开启 · 点击关闭' : '立即锁定',
-              style: const TextStyle(
+            const Text(
+              '立即锁定',
+              style: TextStyle(
                 fontFamily: AppFonts.manrope,
                 fontSize: 16,
                 fontWeight: FontWeight.w500,

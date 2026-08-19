@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../data/in_memory/in_memory_settings_repository.dart';
 import '../domain/repositories/settings_repository.dart';
+import '../services/lock_gate.dart';
 
 /// 全局设置的内存存储（ChangeNotifier）。
 ///
@@ -124,11 +125,14 @@ class SettingsStore extends ChangeNotifier {
 
   void enableLock(String passcode) {
     _repo.enableLock(passcode);
+    // 同步持久化，冷启动/后台 30 分钟锁定依赖此状态
+    LockGate.setEnabled(true);
     notifyListeners();
   }
 
   void disableLock() {
     _repo.disableLock();
+    LockGate.setEnabled(false);
     notifyListeners();
   }
 }

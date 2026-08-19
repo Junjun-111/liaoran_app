@@ -50,8 +50,10 @@ class AssetGridCard extends StatelessWidget {
         : asset.status == AssetLifecycleStatus.retired
             ? const Color(0xFF94A3B8)
             : const Color(0xFFF87171);
-    final isPhoto =
-        asset.icon != null && asset.icon!.isNotEmpty && !asset.icon!.endsWith('.svg');
+    final isPhoto = asset.icon != null &&
+        asset.icon!.isNotEmpty &&
+        !asset.icon!.endsWith('.svg') &&
+        !isEmojiIconPath(asset.icon);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
@@ -183,6 +185,10 @@ class AssetGridCard extends StatelessWidget {
   }
 
   Widget _photoFallback() {
+    final emoji = emojiFromIconPath(asset.icon);
+    if (emoji != null) {
+      return EmojiIconSquare(emoji: emoji, size: 80);
+    }
     return Container(
       width: 80,
       height: 80,

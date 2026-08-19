@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 
+import '../services/lock_gate.dart';
 import '../theme/app_theme.dart';
 
 /// 锁定页：使用系统生物识别（指纹/面容）解锁。
@@ -19,7 +20,14 @@ class _LockScreenState extends State<LockScreen> {
   @override
   void initState() {
     super.initState();
+    LockGate.lockScreenShowing = true;
     _authenticate();
+  }
+
+  @override
+  void dispose() {
+    LockGate.lockScreenShowing = false;
+    super.dispose();
   }
 
   Future<void> _authenticate() async {
@@ -73,9 +81,12 @@ class _LockScreenState extends State<LockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
+    // 禁止系统返回键退出锁定页：只有验证指纹成功才能进入应用
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
         child: Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -150,6 +161,7 @@ class _LockScreenState extends State<LockScreen> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

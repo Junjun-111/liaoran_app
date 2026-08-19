@@ -6,6 +6,7 @@ import '../domain/models/wishlist_item.dart';
 import '../state/settings_store.dart';
 import '../state/wishlist_store.dart';
 import '../theme/app_theme.dart';
+import '../widgets/long_press_delete_card.dart';
 import '../widgets/page_scaffold.dart';
 import '../widgets/primary_cta_button.dart';
 import '../widgets/dialog_controllers.dart';
@@ -137,23 +138,13 @@ class _WishCard extends StatelessWidget {
     final targetText = MoneyFormatter.format(item.targetAmount, decimals: decimals);
     final percent = (item.progress * 100).round();
 
-    return Dismissible(
+    return LongPressDeleteCard(
       key: ValueKey(item.id),
-      direction: DismissDirection.endToStart,
-      onDismissed: (_) => onDelete(),
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(
-          color: const Color(0xFFE5484D),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: const Icon(Icons.delete_outline, color: Colors.white),
-      ),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => _showDetail(context),
-        child: Container(
+      onTap: () => _showDetail(context),
+      onDelete: onDelete,
+      title: '删除心愿',
+      message: '删除后不可恢复，确认要删除该心愿吗？',
+      child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: AppColors.cardWhite,
@@ -256,7 +247,6 @@ class _WishCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
     );
   }
 }
