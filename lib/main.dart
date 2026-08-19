@@ -158,6 +158,7 @@ class _RootShellState extends State<_RootShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    // 标签切换为瞬时切换（与正常 App 一致，不做整页位移动画）
     return IndexedStack(
       index: _index,
       children: [

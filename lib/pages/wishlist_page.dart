@@ -138,13 +138,14 @@ class _WishCard extends StatelessWidget {
     final targetText = MoneyFormatter.format(item.targetAmount, decimals: decimals);
     final percent = (item.progress * 100).round();
 
-    return LongPressDeleteCard(
-      key: ValueKey(item.id),
-      onTap: () => _showDetail(context),
-      onDelete: onDelete,
-      title: '删除心愿',
-      message: '删除后不可恢复，确认要删除该心愿吗？',
-      child: Container(
+    return RepaintBoundary(
+      child: LongPressDeleteCard(
+        key: ValueKey(item.id),
+        onTap: () => _showDetail(context),
+        onDelete: onDelete,
+        title: '删除心愿',
+        message: '删除后不可恢复，确认要删除该心愿吗？',
+        child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: AppColors.cardWhite,
@@ -247,6 +248,7 @@ class _WishCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
     );
   }
 }

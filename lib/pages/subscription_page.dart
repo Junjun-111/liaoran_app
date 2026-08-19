@@ -337,13 +337,14 @@ class _SubscriptionCard extends StatelessWidget {
       currency: sub.currency,
     );
 
-    return LongPressDeleteCard(
-      key: ValueKey(sub.id),
-      onTap: () => _showDetail(context),
-      onDelete: onDelete,
-      title: '删除订阅',
-      message: '删除后不可恢复，确认要删除该订阅吗？',
-      child: Container(
+    return RepaintBoundary(
+      child: LongPressDeleteCard(
+        key: ValueKey(sub.id),
+        onTap: () => _showDetail(context),
+        onDelete: onDelete,
+        title: '删除订阅',
+        message: '删除后不可恢复，确认要删除该订阅吗？',
+        child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: AppColors.cardWhite,
@@ -445,6 +446,7 @@ class _SubscriptionCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
     );
   }
 }
@@ -619,6 +621,8 @@ class _DetailSheetState extends State<_DetailSheet> {
                   width: double.infinity,
                   height: 180,
                   fit: BoxFit.cover,
+                  cacheWidth:
+                      (360 * MediaQuery.of(context).devicePixelRatio).round(),
                 ),
               ),
             ],

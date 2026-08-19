@@ -183,6 +183,17 @@ class AppTextStyles {
   );
 }
 
+/// 全局动效 token：曲线与时长统一在此定义，避免各处手写不一致。
+class AppMotion {
+  AppMotion._();
+
+  /// 强 ease-out（入场/退出）：快速响应、平稳落定。
+  static const Curve easeOut = Cubic(0.23, 1.0, 0.32, 1.0);
+
+  /// 按压反馈时长（100–160ms 区间）。
+  static const Duration press = Duration(milliseconds: 140);
+}
+
 /// 全局主题
 class AppTheme {
   AppTheme._();

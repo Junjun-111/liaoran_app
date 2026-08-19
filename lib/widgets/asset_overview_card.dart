@@ -50,11 +50,12 @@ class AssetOverviewCard extends StatelessWidget {
         final dailyText =
             MoneyFormatter.format(dailyCost, decimals: decimals);
 
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-            child: Container(
+        return RepaintBoundary(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              child: Container(
               height: 200,
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
@@ -139,6 +140,7 @@ class AssetOverviewCard extends StatelessWidget {
               ),
             ),
           ),
+        ),
         );
       },
     );

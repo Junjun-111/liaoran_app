@@ -55,7 +55,8 @@ class AssetGridCard extends StatelessWidget {
         !asset.icon!.endsWith('.svg') &&
         !isEmojiIconPath(asset.icon);
 
-    return Container(
+    return RepaintBoundary(
+      child: Container(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -83,6 +84,12 @@ class AssetGridCard extends StatelessWidget {
                       ? Image.file(
                           File(asset.icon!),
                           fit: BoxFit.contain,
+                          cacheWidth: (80 *
+                              MediaQuery.of(context).devicePixelRatio)
+                              .round(),
+                          cacheHeight: (80 *
+                              MediaQuery.of(context).devicePixelRatio)
+                              .round(),
                           errorBuilder: (_, _, _) => _photoFallback(),
                         )
                       : _photoFallback(),
@@ -180,6 +187,7 @@ class AssetGridCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

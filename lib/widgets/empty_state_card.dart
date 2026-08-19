@@ -35,39 +35,41 @@ class EmptyStateCard extends StatelessWidget {
         ),
         const SizedBox(height: 24),
         // 添加资产按钮（玻璃拟态）
-        ClipRRect(
-          borderRadius: BorderRadius.circular(100),
-          child: BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-            child: GestureDetector(
-              onTap: onAdd,
-              child: Container(
-                width: 120,
-                height: 47,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      AppColors.primary.withValues(alpha: 0.72),
-                      AppColors.primary.withValues(alpha: 0.88),
+        RepaintBoundary(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(100),
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+              child: GestureDetector(
+                onTap: onAdd,
+                child: Container(
+                  width: 120,
+                  height: 47,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        AppColors.primary.withValues(alpha: 0.72),
+                        AppColors.primary.withValues(alpha: 0.88),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(100),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.35),
+                      width: 1,
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x3310B981),
+                        blurRadius: 16,
+                        offset: Offset(0, 8),
+                      ),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(100),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.35),
-                    width: 1,
+                  child: const Center(
+                    child: Text('添加资产', style: AppTextStyles.button),
                   ),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x3310B981),
-                      blurRadius: 16,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: Text('添加资产', style: AppTextStyles.button),
                 ),
               ),
             ),

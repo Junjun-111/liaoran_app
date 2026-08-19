@@ -541,6 +541,12 @@ class _Avatar extends StatelessWidget {
                         width: 80,
                         height: 80,
                         fit: BoxFit.cover,
+                        cacheWidth: (80 *
+                                MediaQuery.of(context).devicePixelRatio)
+                            .round(),
+                        cacheHeight: (80 *
+                                MediaQuery.of(context).devicePixelRatio)
+                            .round(),
                       ),
               ),
             ),
@@ -642,6 +648,12 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
                         width: 72,
                         height: 72,
                         fit: BoxFit.cover,
+                        cacheWidth: (72 *
+                                MediaQuery.of(context).devicePixelRatio)
+                            .round(),
+                        cacheHeight: (72 *
+                                MediaQuery.of(context).devicePixelRatio)
+                            .round(),
                       ),
               ),
             ),

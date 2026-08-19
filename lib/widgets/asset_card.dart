@@ -8,6 +8,7 @@ import '../state/settings_store.dart';
 import '../theme/app_theme.dart';
 import 'item_icon.dart';
 import 'long_press_delete_card.dart';
+import 'motion_widgets.dart';
 
 export 'long_press_delete_card.dart';
 
@@ -174,19 +175,25 @@ class AssetCard extends StatelessWidget {
     );
 
     final card = onDelete == null
-        ? GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onTap,
-            child: cardContent,
+        ? PressScale(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onTap,
+              child: cardContent,
+            ),
           )
         : cardContent;
 
-    if (onDelete == null) return card;
-    return LongPressDeleteCard(
-      key: ValueKey(asset.id),
-      onTap: onTap,
-      onDelete: onDelete!,
-      child: card,
+    // 每张卡片独立成层：图片加载/重绘只影响本卡
+    return RepaintBoundary(
+      child: onDelete == null
+          ? card
+          : LongPressDeleteCard(
+              key: ValueKey(asset.id),
+              onTap: onTap,
+              onDelete: onDelete!,
+              child: card,
+            ),
     );
   }
 }

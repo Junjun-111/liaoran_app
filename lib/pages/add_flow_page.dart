@@ -600,6 +600,12 @@ class _IconPreview extends StatelessWidget {
                       width: 89.6,
                       height: 89.6,
                       fit: BoxFit.contain,
+                      cacheWidth: (89.6 *
+                              MediaQuery.of(context).devicePixelRatio)
+                          .round(),
+                      cacheHeight: (89.6 *
+                              MediaQuery.of(context).devicePixelRatio)
+                          .round(),
                     ),
                   )
                 : Container(
@@ -1584,6 +1590,9 @@ class _UploadBox extends StatelessWidget {
                     child: Image.file(
                       File(attachmentPath!),
                       fit: BoxFit.cover,
+                      cacheWidth: (360 *
+                              MediaQuery.of(context).devicePixelRatio)
+                          .round(),
                     ),
                   ),
                   Positioned(

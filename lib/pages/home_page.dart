@@ -50,7 +50,10 @@ class HomePage extends StatelessWidget {
       child: Scaffold(
         body: Stack(
           children: [
-            const Positioned.fill(child: BackgroundBlobs()),
+            // 静态背景独立成层，滚动时不再反复重绘
+            const Positioned.fill(
+              child: RepaintBoundary(child: BackgroundBlobs()),
+            ),
             LayoutBuilder(
               builder: (context, constraints) {
                 final maxWidth =

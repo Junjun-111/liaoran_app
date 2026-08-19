@@ -57,6 +57,8 @@ class _ConfettiBurstState extends State<ConfettiBurst>
   @override
   Widget build(BuildContext context) {
     if (_finished) return const SizedBox.shrink();
+    // 系统开启“减少动态”时，庆祝动画整体跳过
+    if (MediaQuery.disableAnimationsOf(context)) return const SizedBox.shrink();
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {

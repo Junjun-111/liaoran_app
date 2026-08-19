@@ -63,7 +63,10 @@ class PageScaffold extends StatelessWidget {
         body: Stack(
           children: [
             // 背景渐变光斑（铺满整屏）
-            const Positioned.fill(child: BackgroundBlobs()),
+            // 静态背景独立成层，滚动时不再反复重绘
+            const Positioned.fill(
+              child: RepaintBoundary(child: BackgroundBlobs()),
+            ),
             // 内容区：从顶部开始
             LayoutBuilder(
               builder: (context, constraints) {

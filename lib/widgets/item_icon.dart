@@ -106,6 +106,9 @@ class ItemIcon extends StatelessWidget {
       width: size,
       height: size,
       fit: BoxFit.cover,
+      // 按实际显示尺寸解码，避免大图占满内存拖慢滚动
+      cacheWidth: (size * MediaQuery.of(context).devicePixelRatio).round(),
+      cacheHeight: (size * MediaQuery.of(context).devicePixelRatio).round(),
     );
   }
 }
@@ -156,6 +159,10 @@ class ItemIconBadge extends StatelessWidget {
           width: photoSize,
           height: photoSize,
           fit: BoxFit.contain,
+          cacheWidth:
+              (photoSize * MediaQuery.of(context).devicePixelRatio).round(),
+          cacheHeight:
+              (photoSize * MediaQuery.of(context).devicePixelRatio).round(),
         ),
       );
     }

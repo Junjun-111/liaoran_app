@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import 'motion_widgets.dart';
 
 /// 长按卡片：在卡片中间显示红色垃圾桶按钮，点击后二次确认再删除。
 ///
@@ -112,7 +113,7 @@ class _LongPressDeleteState extends State<LongPressDeleteCard> {
         behavior: HitTestBehavior.opaque,
         onTap: widget.onTap,
         onLongPress: _showDeleteButton,
-        child: widget.child,
+        child: PressScale(child: widget.child),
       ),
     );
   }

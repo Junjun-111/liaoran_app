@@ -865,6 +865,9 @@ class _AssetDetailSheetState extends State<AssetDetailSheet> {
                     width: double.infinity,
                     height: 160,
                     fit: BoxFit.cover,
+                    cacheWidth: (360 *
+                            MediaQuery.of(context).devicePixelRatio)
+                        .round(),
                   ),
                 ),
               ],
