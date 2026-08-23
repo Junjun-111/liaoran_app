@@ -21,6 +21,10 @@ abstract class SettingsRepository {
   bool get lockEnabled;
   String get passcode;
 
+  // ── 备份 ──
+  bool get autoBackupEnabled;
+  DateTime? get lastAutoBackupAt;
+
   void updateCurrency(String value);
   void updateDecimalPlaces(int value);
   void updateViewStyle(String value);
@@ -37,4 +41,7 @@ abstract class SettingsRepository {
 
   void enableLock(String passcode);
   void disableLock();
+
+  void updateAutoBackupEnabled(bool enabled);
+  void updateLastAutoBackupAt(DateTime? time);
 }

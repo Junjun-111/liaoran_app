@@ -26,7 +26,10 @@ class SubscriptionPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: SubscriptionStore.instance,
+      listenable: Listenable.merge([
+        SubscriptionStore.instance,
+        SettingsStore.instance,
+      ]),
       builder: (context, _) {
         final store = SubscriptionStore.instance;
         return PageScaffold(
@@ -99,6 +102,14 @@ class _SubscriptionSectionState extends State<_SubscriptionSection> {
   static const _filters = ['全部', '生效中', '已过期', '已取消', '暂停中'];
 
   int _filterIndex = 0;
+
+  void _openDetail(Subscription sub) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _DetailSheet(subscription: sub),
+    );
+  }
 
   /// 展示用状态（按到期日自动判定）
   static String _effective(Subscription s) =>
@@ -189,6 +200,28 @@ class _SubscriptionSectionState extends State<_SubscriptionSection> {
                 ),
               ),
             ),
+          )
+        else if (SettingsStore.instance.viewStyle == '双列')
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cardWidth = (constraints.maxWidth - 12) / 2;
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (final item in items)
+                    SizedBox(
+                      width: cardWidth,
+                      child: _SubscriptionGridCard(
+                        subscription: item,
+                        effectiveStatus: _effective(item),
+                        onTap: () => _openDetail(item),
+                        onDelete: () => store.remove(item),
+                      ),
+                    ),
+                ],
+              );
+            },
           )
         else
           for (var i = 0; i < items.length; i++) ...[
@@ -580,6 +613,34 @@ class _DetailSheetState extends State<_DetailSheet> {
               ],
             ),
             const SizedBox(height: 16),
+            Row(
+              children: [
+                const Text(
+                  '累计订阅金额',
+                  style: TextStyle(
+                    fontFamily: AppFonts.manrope,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  MoneyFormatter.format(
+                    sub.cumulativeAmount,
+                    decimals: SettingsStore.instance.decimalPlaces,
+                    currency: sub.currency,
+                  ),
+                  style: const TextStyle(
+                    fontFamily: AppFonts.manrope,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
             for (final (label, value) in rows)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
@@ -626,6 +687,165 @@ class _DetailSheetState extends State<_DetailSheet> {
                 ),
               ),
             ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+/// 订阅双列宫格卡片：图标 + 状态胶囊 + 名称 + 平台/周期 + 金额 + 到期。
+class _SubscriptionGridCard extends StatelessWidget {
+  const _SubscriptionGridCard({
+    required this.subscription,
+    required this.effectiveStatus,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  final Subscription subscription;
+  final String effectiveStatus;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  static const _statusColors = <String, Color>{
+    '生效中': Color(0xFF10B981),
+    '已过期': Color(0xFF94A3B8),
+    '已取消': Color(0xFFF87171),
+    '暂停中': Color(0xFFF59E0B),
+  };
+
+  static String _shortDate(DateTime d) => '${d.month}月${d.day}日';
+
+  @override
+  Widget build(BuildContext context) {
+    final sub = subscription;
+    final statusColor =
+        _statusColors[effectiveStatus] ?? const Color(0xFF10B981);
+    final dueText = sub.nextChargeDate != null
+        ? '下次扣款 ${_shortDate(sub.nextChargeDate!)}'
+        : sub.expiryDate != null
+            ? '到期 ${_shortDate(sub.expiryDate!)}'
+            : '未设置到期';
+    final money = MoneyFormatter.format(
+      sub.amount,
+      decimals: SettingsStore.instance.decimalPlaces,
+      currency: sub.currency,
+    );
+    return RepaintBoundary(
+      child: LongPressDeleteCard(
+        key: ValueKey(sub.id),
+        onTap: onTap,
+        onDelete: onDelete,
+        title: '删除订阅',
+        message: '删除后不可恢复，确认要删除该订阅吗？',
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.cardStroke, width: 1.0),
+            boxShadow: const [
+              BoxShadow(
+                color: AppColors.cardShadowPrimary,
+                blurRadius: 16,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ItemIconBadge(
+                    iconPath: sub.icon,
+                    fallbackIcon: Icons.calendar_month_outlined,
+                    photoSize: 72,
+                    circleSize: 48,
+                    iconSize: 24,
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 5,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: statusColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          effectiveStatus,
+                          style: TextStyle(
+                            fontFamily: AppFonts.manrope,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: statusColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                sub.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: AppFonts.manrope,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0E1627),
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                '${sub.platform} · ${sub.cycle}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: AppFonts.manrope,
+                  fontSize: 11,
+                  color: Color(0xFF61758B),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                money,
+                style: const TextStyle(
+                  fontFamily: AppFonts.manrope,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0E1627),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                dueText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: AppFonts.manrope,
+                  fontSize: 10,
+                  color: Color(0xFF94A3B8),
+                ),
+              ),
             ],
           ),
         ),

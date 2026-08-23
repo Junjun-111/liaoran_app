@@ -5,6 +5,9 @@ abstract class WishlistRepository {
   List<WishlistItem> get items;
   bool get isEmpty;
 
+  /// 启动时从本地恢复心愿数据。
+  Future<void> load();
+
   void add(WishlistItem item);
 
   /// 用给定列表整体替换现有数据，保持传入顺序不变。

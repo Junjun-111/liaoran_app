@@ -1,10 +1,8 @@
 import 'dart:io' show File;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
-
 import '../domain/models/asset.dart';
 import '../domain/models/asset_lifecycle_status.dart';
 import '../domain/models/wishlist_item.dart';
@@ -17,10 +15,11 @@ import '../state/wishlist_store.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_date_picker.dart';
 import '../widgets/dialog_controllers.dart';
+import '../widgets/investment_widgets.dart';
+import '../widgets/maintenance_widgets.dart';
 import '../widgets/item_icon.dart';
 import '../widgets/top_snackbar.dart';
 import 'icon_matting_editor_page.dart';
-
 /// 添加流程页（资产 / 订阅 / 心愿）
 ///
 /// 视觉严格按用户提供的 Figma 转 Flutter 代码
@@ -39,19 +38,14 @@ class AddFlowPage extends StatefulWidget {
     this.editingSubscription,
     this.editingAsset,
   });
-
   final int initialTab;
-
   /// 编辑模式：传入已有订阅时只显示订阅表单并回填
   final Subscription? editingSubscription;
-
   /// 编辑模式：传入已有资产时只显示资产表单并回填
   final Asset? editingAsset;
-
   @override
   State<AddFlowPage> createState() => _AddFlowPageState();
 }
-
 class _AddFlowPageState extends State<AddFlowPage> {
   late int _tab =
       widget.editingSubscription != null
@@ -59,31 +53,29 @@ class _AddFlowPageState extends State<AddFlowPage> {
           : widget.editingAsset != null
               ? 0
               : widget.initialTab.clamp(0, 2);
-
   static const _tabLabels = ['资产', '订阅', '心愿'];
-
   final _assetKey = GlobalKey<_AssetFormState>();
   final _subKey = GlobalKey<_SubscriptionFormState>();
   final _wishKey = GlobalKey<_WishFormState>();
-
   /// 订阅页所选图标资源；null 表示默认 Material 日历图标
   late String? _subIcon = widget.editingSubscription?.icon;
-
   /// 资产页所选图标资源（默认资产图标）
   late String? _assetIcon =
       widget.editingAsset?.icon ?? 'assets/CodeBuddyAssets/42_951/6.svg';
-
   /// 心愿页所选图标资源
   String _wishIcon = 'assets/CodeBuddyAssets/43_1372/5.svg';
-
   /// “更换图标”入口：拍照 / 选图 → 图标调整页（AI 抠图 + 框选 + 缩放）→ 设为图标。
   Future<void> _changeIcon(int tab) async {
     final source = await _pickPhotoSource();
     if (source == null || !mounted) return;
-
     // emoji 图标：输入一个 emoji 直接作为主图，不走抠图流程
     if (source == 'emoji') {
-      final emoji = await _pickEmoji();
+      final currentIcon = tab == 0
+          ? _assetIcon
+          : tab == 1
+              ? _subIcon
+              : _wishIcon;
+      final emoji = await _pickEmoji(initial: emojiFromIconPath(currentIcon));
       if (emoji == null || !mounted) return;
       setState(() {
         if (tab == 0) {
@@ -97,7 +89,6 @@ class _AddFlowPageState extends State<AddFlowPage> {
       showTopSnackBar(context, '已设为图标');
       return;
     }
-
     // 拍照 / 相册选择：先选图，再进入 AI 抠图调整页
     final picker = ImagePicker();
     final picked = await picker.pickImage(
@@ -125,15 +116,13 @@ class _AddFlowPageState extends State<AddFlowPage> {
     });
     showTopSnackBar(context, 'AI 抠图完成，已设为图标');
   }
-
   /// 弹窗输入一个 emoji；只允许单个 emoji，取消返回 null。
-  Future<String?> _pickEmoji() async {
+  Future<String?> _pickEmoji({String? initial}) async {
     return showDialog<String>(
       context: context,
-      builder: (_) => const _EmojiInputDialog(),
+      builder: (_) => _EmojiInputDialog(initialEmoji: initial),
     );
   }
-
   Future<String?> _pickPhotoSource() async {
     final action = await showModalBottomSheet<String>(
       context: context,
@@ -209,10 +198,8 @@ class _AddFlowPageState extends State<AddFlowPage> {
     );
     return action;
   }
-
   bool get _isEditing =>
       widget.editingSubscription != null || widget.editingAsset != null;
-
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -264,7 +251,6 @@ class _AddFlowPageState extends State<AddFlowPage> {
       ),
     );
   }
-
   Widget _buildIconPreview() {
     switch (_tab) {
       case 0:
@@ -283,7 +269,6 @@ class _AddFlowPageState extends State<AddFlowPage> {
         return _IconPreview(icon: _wishIcon, onTap: () => _changeIcon(2));
     }
   }
-
   Widget _buildForm() {
     switch (_tab) {
       case 0:
@@ -302,7 +287,6 @@ class _AddFlowPageState extends State<AddFlowPage> {
         return _WishForm(key: _wishKey, icon: _wishIcon);
     }
   }
-
   VoidCallback _confirmForTab(int tab) {
     switch (tab) {
       case 0:
@@ -314,11 +298,9 @@ class _AddFlowPageState extends State<AddFlowPage> {
     }
   }
 }
-
 // ═══════════════════════════════════════════════════════════════════════════
 // Tokens（与 add_subscription_screen.dart 一致）
 // ═══════════════════════════════════════════════════════════════════════════
-
 class _C {
   _C._();
   static const primary = Color(0xFF3DC88A);
@@ -343,30 +325,23 @@ class _C {
   static const iconSheetSelected = Color(0x2E3DC88A);
   static const error = Color(0xFFE5484D);
 }
-
 const _kCardRadius = 15.7;
 const _kPillRadius = 22.4;
 const _kSectionGap = 17.9;
 const _kFieldPadH = 15.7;
 const _kFieldPadV = 13.4;
-
 // ═══════════════════════════════════════════════════════════════════════════
 // 通用交互包装：桌面悬停变淡 + 点击光标；移动端无感
 // ═══════════════════════════════════════════════════════════════════════════
-
 class _PressFx extends StatefulWidget {
   const _PressFx({required this.child, this.onTap});
-
   final Widget child;
   final VoidCallback? onTap;
-
   @override
   State<_PressFx> createState() => _PressFxState();
 }
-
 class _PressFxState extends State<_PressFx> {
   bool _hovered = false;
-
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
@@ -387,18 +362,14 @@ class _PressFxState extends State<_PressFx> {
     );
   }
 }
-
 // ═══════════════════════════════════════════════════════════════════════════
 // 顶栏：chevron_left 28/#444444 + 「添加」24.6 加粗，padding(22,9,22,13)
 // ═══════════════════════════════════════════════════════════════════════════
-
 class _TopBar extends StatelessWidget {
   const _TopBar({required this.onConfirm, this.title = '添加'});
-
   /// 右侧绿色对勾提交按钮的点击回调
   final VoidCallback onConfirm;
   final String title;
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -431,13 +402,10 @@ class _TopBar extends StatelessWidget {
     );
   }
 }
-
 /// 绿色圆形提交按钮：绿底 + 中间白色对勾
 class _ConfirmCheckButton extends StatelessWidget {
   const _ConfirmCheckButton({required this.onTap});
-
   final VoidCallback onTap;
-
   @override
   Widget build(BuildContext context) {
     return _PressFx(
@@ -465,30 +433,24 @@ class _ConfirmCheckButton extends StatelessWidget {
     );
   }
 }
-
 // ═══════════════════════════════════════════════════════════════════════════
 // Tab 切换条：白底圆角 20.2、padding 4.5、Material 图标 14.6、文字 15.7
 // ═══════════════════════════════════════════════════════════════════════════
-
 class _TabBar extends StatelessWidget {
   const _TabBar({
     required this.labels,
     required this.current,
     required this.onTap,
   });
-
   final List<String> labels;
   final int current;
   final ValueChanged<int> onTap;
-
   static const _assetIcon = 'assets/CodeBuddyAssets/42_951/6.svg';
-
   static const _icons = [
     Icons.inventory_2_outlined,
     Icons.subscriptions_outlined,
     Icons.favorite_border,
   ];
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -554,30 +516,24 @@ class _TabBar extends StatelessWidget {
     );
   }
 }
-
 // ═══════════════════════════════════════════════════════════════════════════
 // 图标展示区：点击后拍照/选图并 AI 抠图，把结果作为图标
 // ═══════════════════════════════════════════════════════════════════════════
-
 class _IconPreview extends StatelessWidget {
   const _IconPreview({
     this.icon,
     this.defaultIcon,
     required this.onTap,
   });
-
   final String? icon;
   final IconData? defaultIcon;
   final VoidCallback onTap;
-
   bool get _isPhoto =>
       icon != null &&
       icon!.isNotEmpty &&
       !icon!.endsWith('.svg') &&
       !isEmojiIconPath(icon);
-
   bool get _isEmoji => isEmojiIconPath(icon);
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -601,9 +557,6 @@ class _IconPreview extends StatelessWidget {
                       height: 89.6,
                       fit: BoxFit.contain,
                       cacheWidth: (89.6 *
-                              MediaQuery.of(context).devicePixelRatio)
-                          .round(),
-                      cacheHeight: (89.6 *
                               MediaQuery.of(context).devicePixelRatio)
                           .round(),
                     ),
@@ -649,7 +602,6 @@ class _IconPreview extends StatelessWidget {
     );
   }
 }
-
 /// 拍照 / 相册选择行
 class _PhotoSourceRow extends StatelessWidget {
   const _PhotoSourceRow({
@@ -658,12 +610,10 @@ class _PhotoSourceRow extends StatelessWidget {
     required this.value,
     required this.onSelected,
   });
-
   final IconData icon;
   final String title;
   final String value;
   final ValueChanged<String> onSelected;
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -701,25 +651,20 @@ class _PhotoSourceRow extends StatelessWidget {
     );
   }
 }
-
 // ═══════════════════════════════════════════════════════════════════════════
 // 共享表单组件（数值以 add_subscription_screen.dart 为准）
 // ═══════════════════════════════════════════════════════════════════════════
-
 /// 字段标签：14.6/#555555/行高 1.5；资产/心愿表单可带 16×16 前缀图标
 class _FieldLabel extends StatelessWidget {
   const _FieldLabel(this.text, {this.icon});
-
   final String text;
   final String? icon;
-
   static const _style = TextStyle(
     fontFamily: AppFonts.manrope,
     fontSize: 14.6,
     color: _C.label,
     height: 1.5,
   );
-
   @override
   Widget build(BuildContext context) {
     if (icon == null) {
@@ -743,7 +688,6 @@ class _FieldLabel extends StatelessWidget {
     );
   }
 }
-
 /// 字段卡片：rgba(255,255,255,0.82) 圆角 15.7
 class _FieldCard extends StatelessWidget {
   const _FieldCard({
@@ -751,13 +695,10 @@ class _FieldCard extends StatelessWidget {
     this.height,
     this.hasError = false,
   });
-
   final Widget child;
   final double? height;
-
   /// 校验失败时显示红色描边
   final bool hasError;
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -776,10 +717,10 @@ class _FieldCard extends StatelessWidget {
     );
   }
 }
-
 /// 文本输入框：16.8 / 提示 rgba(26,26,26,0.50)
 class _TextInput extends StatelessWidget {
   const _TextInput({
+    super.key,
     required this.hint,
     this.controller,
     this.keyboardType,
@@ -790,7 +731,6 @@ class _TextInput extends StatelessWidget {
     this.inputFormatters,
     this.onChanged,
   });
-
   final String hint;
   final TextEditingController? controller;
   final TextInputType? keyboardType;
@@ -800,12 +740,12 @@ class _TextInput extends StatelessWidget {
   final TextAlignVertical? textAlignVertical;
   final List<TextInputFormatter>? inputFormatters;
   final ValueChanged<String>? onChanged;
-
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
-      keyboardType: keyboardType,
+      // 未指定时显式使用文本键盘，避免中文输入法组合被上一个数字键盘状态干扰
+      keyboardType: keyboardType ?? TextInputType.text,
       inputFormatters: inputFormatters,
       maxLines: maxLines,
       expands: expands,
@@ -830,14 +770,11 @@ class _TextInput extends StatelessWidget {
     );
   }
 }
-
 /// 金额输入：¥(#555555) + 数字，间距 4.5
 class _MoneyInput extends StatelessWidget {
   const _MoneyInput({this.controller, this.onChanged});
-
   final TextEditingController? controller;
   final ValueChanged<String>? onChanged;
-
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -867,7 +804,6 @@ class _MoneyInput extends StatelessWidget {
     );
   }
 }
-
 /// 下拉卡片：点击后弹出 APP 风格的底部选项面板。
 class _DropdownCard extends StatelessWidget {
   const _DropdownCard({
@@ -875,11 +811,9 @@ class _DropdownCard extends StatelessWidget {
     required this.options,
     required this.onChanged,
   });
-
   final String value;
   final List<String> options;
   final ValueChanged<String> onChanged;
-
   Future<void> _open(BuildContext context) async {
     final picked = await showModalBottomSheet<String>(
       context: context,
@@ -888,7 +822,6 @@ class _DropdownCard extends StatelessWidget {
     );
     if (picked != null) onChanged(picked);
   }
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -931,13 +864,10 @@ class _DropdownCard extends StatelessWidget {
     );
   }
 }
-
 class _AppOptionSheet extends StatelessWidget {
   const _AppOptionSheet({required this.options, required this.selected});
-
   final List<String> options;
   final String selected;
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -1020,13 +950,10 @@ class _AppOptionSheet extends StatelessWidget {
     );
   }
 }
-
 class _TagEntry extends StatelessWidget {
   const _TagEntry({required this.tags, required this.onTap});
-
   final List<String> tags;
   final VoidCallback onTap;
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -1051,21 +978,15 @@ class _TagEntry extends StatelessWidget {
     );
   }
 }
-
 class _TagPickerSheet extends StatefulWidget {
   const _TagPickerSheet({required this.initialSelected});
-
   final List<String> initialSelected;
-
   @override
   State<_TagPickerSheet> createState() => _TagPickerSheetState();
 }
-
 class _TagPickerSheetState extends State<_TagPickerSheet> {
   late final Set<String> _selected = {...widget.initialSelected};
-
   List<String> get _tags => SettingsStore.instance.tags;
-
   Future<void> _addTag() async {
     final name = await showDialog<String>(
       context: context,
@@ -1090,6 +1011,7 @@ class _TagPickerSheetState extends State<_TagPickerSheet> {
             content: TextField(
               controller: ctrl,
               autofocus: true,
+              keyboardType: TextInputType.text,
               decoration: const InputDecoration(labelText: '标签名称'),
             ),
             actions: [
@@ -1119,12 +1041,10 @@ class _TagPickerSheetState extends State<_TagPickerSheet> {
         },
       ),
     );
-
     if (name == null || name.isEmpty || !mounted) return;
     SettingsStore.instance.addTag(name);
     setState(() => _selected.add(name));
   }
-
   @override
   Widget build(BuildContext context) {
     final tags = _tags;
@@ -1236,18 +1156,15 @@ class _TagPickerSheetState extends State<_TagPickerSheet> {
     );
   }
 }
-
 class _TagChoice extends StatelessWidget {
   const _TagChoice({
     required this.label,
     required this.selected,
     required this.onTap,
   });
-
   final String label;
   final bool selected;
   final VoidCallback onTap;
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -1274,7 +1191,6 @@ class _TagChoice extends StatelessWidget {
     );
   }
 }
-
 /// 日期选择字段：点击弹出系统日期选择器，格式 yyyy-MM-dd
 class _DateField extends StatelessWidget {
   const _DateField({
@@ -1287,24 +1203,19 @@ class _DateField extends StatelessWidget {
     this.height,
     this.hasError = false,
   });
-
   final Widget icon;
   final String placeholder;
   final DateTime? value;
   final ValueChanged<DateTime>? onChanged;
-
   /// 可选日期格式化函数；默认 yyyy-MM-dd
   final String Function(DateTime)? formatter;
   final double fontSize;
-
   /// 卡片高度；默认随内容自适应
   final double? height;
   final bool hasError;
-
   static String _defaultFmt(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-'
       '${d.day.toString().padLeft(2, '0')}';
-
   Future<void> _pick(BuildContext context) async {
     final now = DateTime.now();
     final picked = await showAppDatePicker(
@@ -1314,7 +1225,6 @@ class _DateField extends StatelessWidget {
     );
     if (picked != null) onChanged?.call(picked);
   }
-
   @override
   Widget build(BuildContext context) {
     final date = value;
@@ -1348,10 +1258,8 @@ class _DateField extends StatelessWidget {
     );
   }
 }
-
 /// 胶囊单选组：单行（订阅类型/扣款周期）或两列宫格（当前状态）
 enum _CapsuleLayout { row, grid2 }
-
 class _CapsuleGroup extends StatelessWidget {
   const _CapsuleGroup({
     required this.options,
@@ -1359,12 +1267,10 @@ class _CapsuleGroup extends StatelessWidget {
     required this.onChanged,
     this.layout = _CapsuleLayout.row,
   });
-
   final List<String> options;
   final int selectedIndex;
   final ValueChanged<int> onChanged;
   final _CapsuleLayout layout;
-
   @override
   Widget build(BuildContext context) {
     switch (layout) {
@@ -1406,7 +1312,6 @@ class _CapsuleGroup extends StatelessWidget {
     }
   }
 }
-
 class _Capsule extends StatelessWidget {
   const _Capsule({
     required this.label,
@@ -1414,14 +1319,11 @@ class _Capsule extends StatelessWidget {
     required this.onTap,
     this.grid = false,
   });
-
   final String label;
   final bool selected;
   final VoidCallback onTap;
-
   /// 宫格模式（当前状态）：文字居中、无内边距
   final bool grid;
-
   @override
   Widget build(BuildContext context) {
     return _PressFx(
@@ -1458,14 +1360,11 @@ class _Capsule extends StatelessWidget {
     );
   }
 }
-
 /// 重点关注 (Care) 开关行（Figma 42_951 资产表单）
 class _ToggleRow extends StatelessWidget {
   const _ToggleRow({required this.value, required this.onChanged});
-
   final bool value;
   final ValueChanged<bool> onChanged;
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -1536,7 +1435,6 @@ class _ToggleRow extends StatelessWidget {
     );
   }
 }
-
 /// 截图/发票上传框：点击调用系统相册，选中后显示缩略图
 class _UploadBox extends StatelessWidget {
   const _UploadBox({
@@ -1544,11 +1442,9 @@ class _UploadBox extends StatelessWidget {
     required this.onPick,
     required this.onRemove,
   });
-
   final String? attachmentPath;
   final VoidCallback onPick;
   final VoidCallback onRemove;
-
   @override
   Widget build(BuildContext context) {
     return _PressFx(
@@ -1621,14 +1517,11 @@ class _UploadBox extends StatelessWidget {
     );
   }
 }
-
 /// 两列字段行
 class _TwoColumns extends StatelessWidget {
   const _TwoColumns({required this.left, required this.right});
-
   final Widget left;
   final Widget right;
-
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -1641,26 +1534,19 @@ class _TwoColumns extends StatelessWidget {
     );
   }
 }
-
 // ═══════════════════════════════════════════════════════════════════════════
 // 表单 · 添加资产（Figma 42_951）
 // ═══════════════════════════════════════════════════════════════════════════
-
   class _AssetForm extends StatefulWidget {
     const _AssetForm({super.key, this.icon, this.editing});
-
     /// 所选图标资源；null 表示默认资产图标
     final String? icon;
-
     final Asset? editing;
-
   @override
   State<_AssetForm> createState() => _AssetFormState();
 }
-
   class _AssetFormState extends State<_AssetForm> {
     static const _f = 'assets/CodeBuddyAssets/42_951';
-
     late final _nameCtrl =
         TextEditingController(text: widget.editing?.name ?? '');
     late final _priceCtrl = TextEditingController(
@@ -1674,7 +1560,6 @@ class _TwoColumns extends StatelessWidget {
     );
     late final _noteCtrl =
         TextEditingController(text: widget.editing?.remark ?? '');
-
     late DateTime? _purchaseDate =
         widget.editing?.purchaseDate ?? DateTime.now();
     late String _category = widget.editing == null
@@ -1688,15 +1573,17 @@ class _TwoColumns extends StatelessWidget {
     late List<String> _selectedTags = [...?widget.editing?.tags];
     late bool _careEnabled = widget.editing?.careExpiryDate != null;
     late DateTime? _careExpiryDate = widget.editing?.careExpiryDate;
+    late List<InvestmentRecord> _investments = [...?widget.editing?.investments];
+    late List<MaintenanceRecord> _maintenanceRecords = [
+      ...?widget.editing?.maintenanceRecords,
+    ];
     late int _statusIndex = widget.editing == null
         ? 0
         : AssetLifecycleStatus.values.indexOf(widget.editing!.status).clamp(0, 2);
-
     bool _nameError = false;
     bool _priceError = false;
     bool _dateError = false;
     bool _customCategoryError = false;
-
     @override
     void dispose() {
       _nameCtrl.dispose();
@@ -1705,18 +1592,15 @@ class _TwoColumns extends StatelessWidget {
       _noteCtrl.dispose();
       super.dispose();
     }
-
     void _showError(String message) {
       showTopSnackBar(context, message);
     }
-
     Future<void> _pickUpload() async {
       final path = await UploadService.pickImage();
       if (path != null && mounted) {
         setState(() => _attachmentPath = path);
       }
     }
-
     Future<void> _openTags() async {
       final result = await showModalBottomSheet<List<String>>(
         context: context,
@@ -1727,6 +1611,59 @@ class _TwoColumns extends StatelessWidget {
         setState(() => _selectedTags = result);
       }
     }
+    Future<void> _addInvestment() async {
+      final record = await showDialog<InvestmentRecord>(
+        context: context,
+        builder: (_) => const InvestmentDialog(),
+      );
+      if (record != null && mounted) {
+        setState(() => _investments = [..._investments, record]);
+      }
+    }
+
+    Future<void> _openInvestments() async {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => InvestmentRecordsPage(
+            initial: _investments,
+            currency:
+                widget.editing?.currency ?? SettingsStore.instance.currency,
+            decimals: SettingsStore.instance.decimalPlaces,
+            editable: true,
+            onChanged: (records) {
+              if (mounted) setState(() => _investments = records);
+            },
+          ),
+        ),
+      );
+    }
+
+    Future<void> _addMaintenance() async {
+      final record = await showDialog<MaintenanceRecord>(
+        context: context,
+        builder: (_) => const MaintenanceDialog(),
+      );
+      if (record != null && mounted) {
+        setState(() => _maintenanceRecords = [..._maintenanceRecords, record]);
+      }
+    }
+
+    Future<void> _openMaintenance() async {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => MaintenanceRecordsPage(
+            initial: _maintenanceRecords,
+            currency:
+                widget.editing?.currency ?? SettingsStore.instance.currency,
+            decimals: SettingsStore.instance.decimalPlaces,
+            editable: true,
+            onChanged: (records) {
+              if (mounted) setState(() => _maintenanceRecords = records);
+            },
+          ),
+        ),
+      );
+    }
 
     void submit() {
       final name = _nameCtrl.text.trim();
@@ -1735,14 +1672,12 @@ class _TwoColumns extends StatelessWidget {
       final category = _isCustomCategory
           ? _customCategoryCtrl.text.trim()
           : _category;
-
       setState(() {
         _nameError = name.isEmpty;
         _priceError = priceText.isNotEmpty && (price == null || price < 0);
         _dateError = _purchaseDate == null;
         _customCategoryError = _isCustomCategory && category.isEmpty;
       });
-
       if (_nameError) {
         _showError('请输入资产名称');
         return;
@@ -1762,7 +1697,6 @@ class _TwoColumns extends StatelessWidget {
       if (_isCustomCategory && !SettingsStore.instance.categories.contains(category)) {
         SettingsStore.instance.addCategory(category);
       }
-
       final editing = widget.editing;
       final status = AssetLifecycleStatus.values[_statusIndex];
       final asset = Asset(
@@ -1784,8 +1718,9 @@ class _TwoColumns extends StatelessWidget {
         tags: _selectedTags,
         createdAt: editing?.createdAt ?? DateTime.now(),
         saleRecords: editing?.saleRecords ?? const [],
+        investments: _investments,
+        maintenanceRecords: _maintenanceRecords,
       );
-
       if (editing != null) {
         AssetStore.instance.update(asset);
       } else {
@@ -1806,9 +1741,7 @@ class _TwoColumns extends StatelessWidget {
         );
       });
     }
-
     static String _cnDate(DateTime d) => '${d.year}年${d.month}月${d.day}日';
-
     @override
     Widget build(BuildContext context) {
       return Padding(
@@ -1824,22 +1757,25 @@ class _TwoColumns extends StatelessWidget {
               child: _TextInput(
                 hint: '如：iPhone 15 Pro',
                 controller: _nameCtrl,
-                onChanged: (_) => setState(() => _nameError = false),
+                onChanged: (_) {
+                  // 仅在确实有错误时重建，避免每次按键打断中文输入法组合
+                  if (_nameError) setState(() => _nameError = false);
+                },
               ),
             ),
             const SizedBox(height: _kSectionGap),
-
             _FieldLabel('购买价格', icon: '$_f/8.svg'),
             const SizedBox(height: 6.7),
             _FieldCard(
               hasError: _priceError,
               child: _MoneyInput(
                 controller: _priceCtrl,
-                onChanged: (_) => setState(() => _priceError = false),
+                onChanged: (_) {
+                  if (_priceError) setState(() => _priceError = false);
+                },
               ),
             ),
             const SizedBox(height: _kSectionGap),
-
             _TwoColumns(
             left: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1898,17 +1834,20 @@ class _TwoColumns extends StatelessWidget {
             const _FieldLabel('自定义'),
             const SizedBox(height: 6.7),
             _FieldCard(
+              height: 53.7,
               hasError: _customCategoryError,
               child: _TextInput(
                 hint: '请输入分类名称',
                 controller: _customCategoryCtrl,
-                onChanged: (_) =>
-                    setState(() => _customCategoryError = false),
+                onChanged: (_) {
+                  if (_customCategoryError) {
+                    setState(() => _customCategoryError = false);
+                  }
+                },
               ),
             ),
           ],
           const SizedBox(height: _kSectionGap),
-
           _ToggleRow(
             value: _careEnabled,
             onChanged: (v) => setState(() => _careEnabled = v),
@@ -1928,7 +1867,6 @@ class _TwoColumns extends StatelessWidget {
               ),
             ],
           const SizedBox(height: _kSectionGap),
-
           _FieldLabel('当前状态', icon: '$_f/17.svg'),
           const SizedBox(height: 6.7),
           _CapsuleGroup(
@@ -1937,7 +1875,6 @@ class _TwoColumns extends StatelessWidget {
             onChanged: (i) => setState(() => _statusIndex = i),
           ),
           const SizedBox(height: _kSectionGap),
-
           const _FieldLabel('标签'),
           const SizedBox(height: 6.7),
           _TagEntry(
@@ -1945,7 +1882,6 @@ class _TwoColumns extends StatelessWidget {
             onTap: _openTags,
           ),
           const SizedBox(height: _kSectionGap),
-
           const _FieldLabel('备注'),
           _FieldCard(
             height: 104.9,
@@ -1959,7 +1895,6 @@ class _TwoColumns extends StatelessWidget {
             ),
           ),
           const SizedBox(height: _kSectionGap),
-
           const _FieldLabel('上传图片'),
           const SizedBox(height: 6.7),
           _UploadBox(
@@ -1967,34 +1902,50 @@ class _TwoColumns extends StatelessWidget {
             onPick: _pickUpload,
             onRemove: () => setState(() => _attachmentPath = null),
           ),
+          const SizedBox(height: _kSectionGap),
+          const _FieldLabel('累计投入'),
+          const SizedBox(height: 6.7),
+          InvestmentCard(
+            investments: _investments,
+            currency:
+                widget.editing?.currency ?? SettingsStore.instance.currency,
+            decimals: SettingsStore.instance.decimalPlaces,
+            onOpen: _openInvestments,
+            onAdd: _addInvestment,
+          ),
+          const SizedBox(height: 6.7),
+          const _FieldLabel('维修 / 保养'),
+          const SizedBox(height: 6.7),
+          MaintenanceCard(
+            records: _maintenanceRecords,
+            currency:
+                widget.editing?.currency ?? SettingsStore.instance.currency,
+            decimals: SettingsStore.instance.decimalPlaces,
+            onOpen: _openMaintenance,
+            onAdd: _addMaintenance,
+          ),
           const SizedBox(height: 4.5),
         ],
       ),
     );
   }
 }
-
 // ═══════════════════════════════════════════════════════════════════════════
 // 表单 · 添加订阅（add_subscription_screen.dart）
 // ═══════════════════════════════════════════════════════════════════════════
-
   class _SubscriptionForm extends StatefulWidget {
     const _SubscriptionForm({
       super.key,
       required this.icon,
       this.editing,
     });
-
     /// 所选图标资源；null 表示默认日历图标
     final String? icon;
-
     /// 编辑模式：非 null 时回填表单，保存走更新
     final Subscription? editing;
-
     @override
     State<_SubscriptionForm> createState() => _SubscriptionFormState();
   }
-
 class _SubscriptionFormState extends State<_SubscriptionForm> {
   static const _types = ['自动续费', '买断', '一次性'];
   static const _cycles = ['包月', '包季', '包年', '无'];
@@ -2022,7 +1973,6 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
     'GBP',
     '自定义',
   ];
-
     late final _nameCtrl =
         TextEditingController(text: widget.editing?.name ?? '');
     late final _amountCtrl = TextEditingController(
@@ -2034,7 +1984,6 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
     );
     late final _noteCtrl =
         TextEditingController(text: widget.editing?.remark ?? '');
-
     late final _customPlatformCtrl = TextEditingController(
       text: widget.editing != null &&
               !_platforms.contains(widget.editing!.platform)
@@ -2047,7 +1996,6 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
           ? widget.editing!.currency
           : '',
     );
-
     late String _platform = widget.editing == null
         ? '苹果'
         : _platforms.contains(widget.editing!.platform)
@@ -2069,13 +2017,14 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
     late DateTime? _endDate = widget.editing?.expiryDate;
     late DateTime? _nextDate = widget.editing?.nextChargeDate;
     late String? _attachmentPath = widget.editing?.attachmentPath;
-
+    late bool _notifyEnabled = widget.editing?.notifyEnabled ?? true;
+    late int _notifyDaysBefore = widget.editing?.notifyDaysBefore ?? 3;
+    late int _notifyHour = widget.editing?.notifyHour ?? 9;
   bool _nameError = false;
   bool _amountError = false;
   bool _dateError = false;
   bool _customPlatformError = false;
   bool _customCurrencyError = false;
-
   @override
   void dispose() {
     _nameCtrl.dispose();
@@ -2085,18 +2034,15 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
     _customCurrencyCtrl.dispose();
     super.dispose();
   }
-
   void _showError(String message) {
     showTopSnackBar(context, message);
   }
-
   Future<void> _pickUpload() async {
     final path = await UploadService.pickImage();
     if (path != null && mounted) {
       setState(() => _attachmentPath = path);
     }
   }
-
   void submit() {
     final name = _nameCtrl.text.trim();
     final amountText = _amountCtrl.text.trim();
@@ -2106,7 +2052,6 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
         : _platform;
     final currency =
         _currency == '自定义' ? _customCurrencyCtrl.text.trim() : _currency;
-
     setState(() {
       _nameError = name.isEmpty;
       _amountError = amount == null || amount < 0;
@@ -2114,7 +2059,6 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
       _customPlatformError = _platform == '自定义' && platform.isEmpty;
       _customCurrencyError = _currency == '自定义' && currency.isEmpty;
     });
-
     if (_nameError) {
       _showError('请输入 APP / 服务名称');
       return;
@@ -2135,7 +2079,6 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
       _showError('请输入自定义币种');
       return;
     }
-
       final editing = widget.editing;
       final subscription = Subscription(
         id: editing?.id ?? 's${DateTime.now().microsecondsSinceEpoch}',
@@ -2152,9 +2095,11 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
       remark: _noteCtrl.text.trim(),
       icon: widget.icon,
       attachmentPath: _attachmentPath,
+      notifyEnabled: _notifyEnabled,
+      notifyDaysBefore: _notifyDaysBefore,
+      notifyHour: _notifyHour,
       createdAt: DateTime.now(),
     );
-
       if (editing != null) {
         SubscriptionStore.instance.update(subscription);
       } else {
@@ -2175,7 +2120,6 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
         );
       });
   }
-
   @override
   Widget build(BuildContext context) {
     final calendarIcon = const Icon(
@@ -2183,7 +2127,6 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
       size: 16.8,
       color: _C.primary,
     );
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 17.9),
       child: Column(
@@ -2195,13 +2138,15 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
             height: 53.7,
             hasError: _nameError,
             child: _TextInput(
+              key: const ValueKey('sub_name'),
               hint: '如：iCloud+ / Notion / Spotify',
               controller: _nameCtrl,
-              onChanged: (_) => setState(() => _nameError = false),
+              onChanged: (_) {
+                if (_nameError) setState(() => _nameError = false);
+              },
             ),
           ),
           const SizedBox(height: _kSectionGap),
-
           const _FieldLabel('订阅平台'),
           _DropdownCard(
             value: _platform,
@@ -2217,13 +2162,15 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
               child: _TextInput(
                 hint: '请输入订阅平台',
                 controller: _customPlatformCtrl,
-                onChanged: (_) =>
-                    setState(() => _customPlatformError = false),
+                onChanged: (_) {
+                  if (_customPlatformError) {
+                    setState(() => _customPlatformError = false);
+                  }
+                },
               ),
             ),
           ],
           const SizedBox(height: _kSectionGap),
-
           const _FieldLabel('订阅类型'),
           const SizedBox(height: 6.7),
           _CapsuleGroup(
@@ -2232,7 +2179,6 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
             onChanged: (i) => setState(() => _typeIndex = i),
           ),
           const SizedBox(height: _kSectionGap),
-
           _TwoColumns(
             left: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2244,7 +2190,9 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
                       hasError: _amountError,
                       child: _MoneyInput(
                     controller: _amountCtrl,
-                    onChanged: (_) => setState(() => _amountError = false),
+                    onChanged: (_) {
+                      if (_amountError) setState(() => _amountError = false);
+                    },
                   ),
                 ),
               ],
@@ -2267,8 +2215,11 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
                     child: _TextInput(
                       hint: '请输入币种',
                       controller: _customCurrencyCtrl,
-                      onChanged: (_) =>
-                          setState(() => _customCurrencyError = false),
+                      onChanged: (_) {
+                        if (_customCurrencyError) {
+                          setState(() => _customCurrencyError = false);
+                        }
+                      },
                     ),
                   ),
                 ],
@@ -2276,7 +2227,6 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
             ),
           ),
           const SizedBox(height: _kSectionGap),
-
           const _FieldLabel('扣款周期'),
           const SizedBox(height: 6.7),
           _CapsuleGroup(
@@ -2285,7 +2235,6 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
             onChanged: (i) => setState(() => _cycleIndex = i),
           ),
           const SizedBox(height: _kSectionGap),
-
           const _FieldLabel('首次订阅时间'),
           _DateField(
             icon: calendarIcon,
@@ -2299,7 +2248,6 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
             hasError: _dateError && _startDate == null,
           ),
           const SizedBox(height: _kSectionGap),
-
           const _FieldLabel('当前周期到期时间'),
           _DateField(
             icon: calendarIcon,
@@ -2313,7 +2261,6 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
             hasError: _dateError && _endDate == null,
           ),
           const SizedBox(height: _kSectionGap),
-
           const _FieldLabel('下次自动扣款时间'),
           _DateField(
             icon: calendarIcon,
@@ -2323,7 +2270,6 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
             onChanged: (d) => setState(() => _nextDate = d),
           ),
           const SizedBox(height: _kSectionGap),
-
           const _FieldLabel('当前状态'),
           const SizedBox(height: 6.7),
           _CapsuleGroup(
@@ -2333,7 +2279,17 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
             layout: _CapsuleLayout.grid2,
           ),
           const SizedBox(height: _kSectionGap),
-
+          const _FieldLabel('通知提醒'),
+          const SizedBox(height: 6.7),
+          _NotifySettingsCard(
+            enabled: _notifyEnabled,
+            daysBefore: _notifyDaysBefore,
+            hour: _notifyHour,
+            onEnabledChanged: (v) => setState(() => _notifyEnabled = v),
+            onDaysChanged: (v) => setState(() => _notifyDaysBefore = v),
+            onHourChanged: (v) => setState(() => _notifyHour = v),
+          ),
+          const SizedBox(height: _kSectionGap),
           const _FieldLabel('备注'),
           _FieldCard(
             height: 104.9,
@@ -2347,7 +2303,6 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
             ),
           ),
           const SizedBox(height: _kSectionGap),
-
           const _FieldLabel('截图 / 发票'),
           const SizedBox(height: 6.7),
           _UploadBox(
@@ -2361,37 +2316,28 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
     );
   }
 }
-
 // ═══════════════════════════════════════════════════════════════════════════
 // 表单 · 添加心愿（Figma 43_1372）
 // ═══════════════════════════════════════════════════════════════════════════
-
   class _WishForm extends StatefulWidget {
     const _WishForm({super.key, required this.icon});
-
     final String icon;
-
     @override
     State<_WishForm> createState() => _WishFormState();
   }
-
   class _WishFormState extends State<_WishForm> {
     static const _f = 'assets/CodeBuddyAssets/43_1372';
-
     final _nameCtrl = TextEditingController();
     final _targetCtrl = TextEditingController();
     final _customCategoryCtrl = TextEditingController();
-
     DateTime? _addDate = DateTime.now();
     String _category =
         SettingsStore.instance.categories.firstOrNull ?? '其他';
     bool _isCustomCategory = false;
-
     bool _nameError = false;
     bool _targetError = false;
     bool _dateError = false;
     bool _customCategoryError = false;
-
     @override
     void dispose() {
       _nameCtrl.dispose();
@@ -2399,11 +2345,9 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
       _customCategoryCtrl.dispose();
       super.dispose();
     }
-
     void _showError(String message) {
       showTopSnackBar(context, message);
     }
-
     void submit() {
       final name = _nameCtrl.text.trim();
       final targetText = _targetCtrl.text.trim();
@@ -2411,14 +2355,12 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
       final category = _isCustomCategory
           ? _customCategoryCtrl.text.trim()
           : _category;
-
       setState(() {
         _nameError = name.isEmpty;
         _targetError = target == null || target <= 0;
         _dateError = _addDate == null;
         _customCategoryError = _isCustomCategory && category.isEmpty;
       });
-
       if (_nameError) {
         _showError('请输入心愿名称');
         return;
@@ -2438,7 +2380,6 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
       if (_isCustomCategory && !SettingsStore.instance.categories.contains(category)) {
         SettingsStore.instance.addCategory(category);
       }
-
       final item = WishlistItem(
         id: 'w${DateTime.now().microsecondsSinceEpoch}',
         name: name,
@@ -2450,7 +2391,6 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
         icon: widget.icon,
         createdAt: DateTime.now(),
       );
-
       WishlistStore.instance.add(item);
       final messenger = ScaffoldMessenger.of(context);
       final screenHeight = MediaQuery.sizeOf(context).height;
@@ -2467,9 +2407,7 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
         );
       });
     }
-
     static String _cnDate(DateTime d) => '${d.year}年${d.month}月${d.day}日';
-
     @override
     Widget build(BuildContext context) {
       return Padding(
@@ -2485,22 +2423,24 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
               child: _TextInput(
                 hint: '如：新款 MacBook Pro',
                 controller: _nameCtrl,
-                onChanged: (_) => setState(() => _nameError = false),
+                onChanged: (_) {
+                  if (_nameError) setState(() => _nameError = false);
+                },
               ),
             ),
             const SizedBox(height: _kSectionGap),
-
             _FieldLabel('目标金额', icon: '$_f/7.svg'),
             const SizedBox(height: 6.7),
             _FieldCard(
               hasError: _targetError,
               child: _MoneyInput(
                 controller: _targetCtrl,
-                onChanged: (_) => setState(() => _targetError = false),
+                onChanged: (_) {
+                  if (_targetError) setState(() => _targetError = false);
+                },
               ),
             ),
             const SizedBox(height: _kSectionGap),
-
             _TwoColumns(
               left: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2559,12 +2499,16 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
               const _FieldLabel('自定义'),
               const SizedBox(height: 6.7),
               _FieldCard(
+                height: 53.7,
                 hasError: _customCategoryError,
                 child: _TextInput(
                   hint: '请输入分类名称',
                   controller: _customCategoryCtrl,
-                  onChanged: (_) =>
-                      setState(() => _customCategoryError = false),
+                  onChanged: (_) {
+                    if (_customCategoryError) {
+                      setState(() => _customCategoryError = false);
+                    }
+                  },
                 ),
               ),
             ],
@@ -2574,26 +2518,41 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
       );
     }
   }
-
 /// 输入 emoji 的弹窗：自己持有输入框控制器，随弹窗销毁时释放，
 /// 避免在关闭动画期间销毁控制器触发框架断言。
 class _EmojiInputDialog extends StatefulWidget {
-  const _EmojiInputDialog();
+  const _EmojiInputDialog({this.initialEmoji});
+
+  /// 已设置为图标时的现有 emoji；编辑场景回填，避免重新输入。
+  final String? initialEmoji;
 
   @override
   State<_EmojiInputDialog> createState() => _EmojiInputDialogState();
 }
-
 class _EmojiInputDialogState extends State<_EmojiInputDialog> {
-  final _controller = TextEditingController();
+  late final _controller = TextEditingController(
+    text: widget.initialEmoji ?? '',
+  );
+  late final _focusNode = FocusNode()..addListener(_selectAllOnFocus);
   String _error = '';
+
+  /// 编辑已有表情时，聚焦即全选，直接输入即可替换旧表情。
+  void _selectAllOnFocus() {
+    if (!_focusNode.hasFocus || _controller.text.isEmpty) return;
+    _controller.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _controller.text.length,
+    );
+  }
 
   @override
   void dispose() {
+    _focusNode
+      ..removeListener(_selectAllOnFocus)
+      ..dispose();
     _controller.dispose();
     super.dispose();
   }
-
   void _submit() {
     final text = _controller.text.trim();
     final length = text.characters.length;
@@ -2607,7 +2566,6 @@ class _EmojiInputDialogState extends State<_EmojiInputDialog> {
     }
     Navigator.of(context).pop(text);
   }
-
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -2625,7 +2583,10 @@ class _EmojiInputDialogState extends State<_EmojiInputDialog> {
       ),
       content: TextField(
         controller: _controller,
-        autofocus: true,
+        focusNode: _focusNode,
+        // 已有 emoji（点击已添加的表情）时不自动弹键盘；
+        // 首次添加时自动聚焦，方便直接输入。
+        autofocus: widget.initialEmoji == null,
         inputFormatters: const [_EmojiOnlyInputFormatter()],
         textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 28, height: 1.2),
@@ -2683,11 +2644,9 @@ class _EmojiInputDialogState extends State<_EmojiInputDialog> {
     );
   }
 }
-
 /// 只允许 emoji 字符输入：文字、数字等其他内容一律在输入框内不显示。
 class _EmojiOnlyInputFormatter extends TextInputFormatter {
   const _EmojiOnlyInputFormatter();
-
   @override
   TextEditingValue formatEditUpdate(
     TextEditingValue oldValue,
@@ -2705,12 +2664,10 @@ class _EmojiOnlyInputFormatter extends TextInputFormatter {
     );
   }
 }
-
 bool _isEmojiCluster(String cluster) {
   final runes = cluster.runes.toList();
   return runes.isNotEmpty && runes.any(_isEmojiCodePoint);
 }
-
 bool _isEmojiCodePoint(int r) {
   return (r >= 0x1F000 && r <= 0x1FAFF) || // Emoji 主要区块（含手机 📱）
       (r >= 0x1F1E6 && r <= 0x1F1FF) || // 区域指示符（旗帜）
@@ -2721,4 +2678,176 @@ bool _isEmojiCodePoint(int r) {
       r == 0xFE0F || // 变体选择符
       r == 0x200D || // 零宽连接符（组合 emoji）
       r == 0x20E3; // 组合围键帽（数字键帽表情）
+}
+/// 通知提醒设置卡片：开关 + 提前几天 + 提醒时间。
+class _NotifySettingsCard extends StatelessWidget {
+  const _NotifySettingsCard({
+    required this.enabled,
+    required this.daysBefore,
+    required this.hour,
+    required this.onEnabledChanged,
+    required this.onDaysChanged,
+    required this.onHourChanged,
+  });
+
+  final bool enabled;
+  final int daysBefore;
+  final int hour;
+  final ValueChanged<bool> onEnabledChanged;
+  final ValueChanged<int> onDaysChanged;
+  final ValueChanged<int> onHourChanged;
+
+  static const _days = [1, 3, 7];
+  static const _hours = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4FAF8),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  '到期提醒',
+                  style: TextStyle(
+                    fontFamily: AppFonts.manrope,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              _MiniSwitch(value: enabled, onChanged: onEnabledChanged),
+            ],
+          ),
+          if (enabled) ...[
+            const SizedBox(height: 12),
+            const Text(
+              '提前几天',
+              style: TextStyle(
+                fontFamily: AppFonts.manrope,
+                fontSize: 12,
+                color: Color(0xFF61758B),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final d in _days)
+                  _NotifyChip(
+                    label: '$d天',
+                    selected: d == daysBefore,
+                    onTap: () => onDaysChanged(d),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '提醒时间',
+              style: TextStyle(
+                fontFamily: AppFonts.manrope,
+                fontSize: 12,
+                color: Color(0xFF61758B),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final h in _hours)
+                  _NotifyChip(
+                    label: '$h点',
+                    selected: h == hour,
+                    onTap: () => onHourChanged(h),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// 小型自绘开关。
+class _MiniSwitch extends StatelessWidget {
+  const _MiniSwitch({required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => onChanged(!value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        width: 44,
+        height: 26,
+        padding: const EdgeInsets.all(3),
+        alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+        decoration: BoxDecoration(
+          color: value ? _C.primary : const Color(0xFFE3E8E6),
+          borderRadius: BorderRadius.circular(13),
+        ),
+        child: Container(
+          width: 20,
+          height: 20,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 通知设置选项小胶囊。
+class _NotifyChip extends StatelessWidget {
+  const _NotifyChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? _C.primary : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? _C.primary : const Color(0xFFE3E8E6),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: AppFonts.manrope,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: selected ? Colors.white : const Color(0xFF61758B),
+          ),
+        ),
+      ),
+    );
+  }
 }

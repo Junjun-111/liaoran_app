@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import '../data/in_memory/in_memory_subscription_repository.dart';
+import '../data/local/local_subscription_repository.dart';
 import '../domain/repositories/subscription_repository.dart';
 import '../models/subscription.dart';
 
@@ -13,9 +13,15 @@ class SubscriptionStore extends ChangeNotifier {
   SubscriptionStore._(this._repo);
 
   static final SubscriptionStore instance =
-      SubscriptionStore._(InMemorySubscriptionRepository.instance);
+      SubscriptionStore._(LocalSubscriptionRepository.instance);
 
   final SubscriptionRepository _repo;
+
+  /// 启动时从手机本地恢复订阅数据。
+  Future<void> load() async {
+    await _repo.load();
+    notifyListeners();
+  }
 
   /// 只读订阅列表（新添加的排在前面）
   List<Subscription> get items => _repo.items;

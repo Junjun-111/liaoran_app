@@ -16,6 +16,7 @@ import '../widgets/page_header.dart';
 import '../widgets/primary_cta_button.dart';
 import 'analytics_page.dart';
 import 'add_flow_page.dart';
+import 'report_page.dart';
 
 /// 我的资产页：资产列表（复用共享卡片）+ 详情面板。
 ///
@@ -42,7 +43,12 @@ class MyAssetsPage extends StatelessWidget {
           subtitle: '攒钱 未来更好的相遇',
           currentIndex: 3,
           onNavTap: onNavTap,
-          header: _MyAssetsHeader(onAnalyticsTap: openAnalytics),
+          header: _MyAssetsHeader(
+            onAnalyticsTap: openAnalytics,
+            onReportTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ReportPage()),
+            ),
+          ),
           body: store.isEmpty
               ? const _EmptyState()
               : Column(
@@ -67,9 +73,13 @@ class MyAssetsPage extends StatelessWidget {
 }
 
 class _MyAssetsHeader extends StatelessWidget {
-  const _MyAssetsHeader({required this.onAnalyticsTap});
+  const _MyAssetsHeader({
+    required this.onAnalyticsTap,
+    required this.onReportTap,
+  });
 
   final VoidCallback onAnalyticsTap;
+  final VoidCallback onReportTap;
 
   @override
   Widget build(BuildContext context) {
@@ -120,6 +130,31 @@ class _MyAssetsHeader extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onReportTap,
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.62),
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.cardStroke, width: 1),
+                boxShadow: const [
+                  BoxShadow(
+                    color: AppColors.cardShadowPrimary,
+                    blurRadius: 12,
+                    offset: Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.ios_share_rounded,
+                size: 19,
+                color: AppColors.textPrimary,
               ),
             ),
           ),
@@ -420,7 +455,7 @@ class _AssetGrid extends StatelessWidget {
                     child: LongPressDeleteCard(
                       key: ValueKey(asset.id),
                       onTap: () => _showDetail(context, asset),
-                      onDelete: () => store.remove(asset),
+                      onDelete: () => store.moveToTrash(asset),
                       child: AssetGridCard(asset: asset),
                     ),
                   ),
@@ -509,7 +544,7 @@ class _AssetList extends StatelessWidget {
           AssetCard(
             asset: items[i],
             onTap: () => _showDetail(context, items[i]),
-            onDelete: () => store.remove(items[i]),
+            onDelete: () => store.moveToTrash(items[i]),
           ),
           if (i < items.length - 1) const SizedBox(height: 12),
         ],

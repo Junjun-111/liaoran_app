@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 
@@ -84,18 +84,12 @@ class _IconMattingEditorPageState extends State<IconMattingEditorPage> {
 
   Future<void> _loadMatted(String path) async {
     final bytes = await File(path).readAsBytes();
-    final decoded = img.decodeImage(bytes);
-    if (decoded == null) {
-      _fail('抠图结果异常，请重试');
-      return;
-    }
-    final trimmed = _trimTransparent(decoded);
-    final trimmedPng = img.encodePng(trimmed);
+    final (trimmed, trimmedPng) = await compute(_decodeTrimEncodeSync, bytes);
     final saved = await AiMattingService.savePng(
-      Uint8List.fromList(trimmedPng),
+      trimmedPng,
       prefix: 'icon_final',
     );
-    await _showImage(saved, Uint8List.fromList(trimmedPng), trimmed);
+    await _showImage(saved, trimmedPng, trimmed);
   }
 
   /// 展示一张图片并保存为当前图标；切换图片时视图回到居中适配。
@@ -146,13 +140,12 @@ class _IconMattingEditorPageState extends State<IconMattingEditorPage> {
     });
     try {
       final bytes = await File(src).readAsBytes();
-      final decoded = img.decodeImage(bytes);
-      if (decoded == null) throw const AiMattingException('无法读取原图');
+      final (decoded, png) = await compute(_decodeEncodeSync, bytes);
       final saved = await AiMattingService.savePng(
-        bytes,
+        png,
         prefix: 'icon_original',
       );
-      await _showImage(saved, bytes, decoded);
+      await _showImage(saved, png, decoded);
       if (mounted) {
         setState(() => _usingOriginal = true);
       }
@@ -218,10 +211,6 @@ class _IconMattingEditorPageState extends State<IconMattingEditorPage> {
       return;
     }
 
-    final cropped =
-        img.copyCrop(image, x: ix, y: iy, width: iw, height: ih);
-    final png = img.encodePng(cropped);
-
     setState(() {
       _loading = true;
       _cropMode = false;
@@ -231,12 +220,14 @@ class _IconMattingEditorPageState extends State<IconMattingEditorPage> {
       _dragMove = false;
     });
     try {
+      final (cropped, png) =
+          await compute(_cropEncodeSync, (image, ix, iy, iw, ih));
       // 框选什么样就是什么样：直接保存选区内容，不再自动二次抠图
       final saved = await AiMattingService.savePng(
-        Uint8List.fromList(png),
+        png,
         prefix: 'icon_crop',
       );
-      await _showImage(saved, Uint8List.fromList(png), cropped);
+      await _showImage(saved, png, cropped);
     } catch (_) {
       if (mounted) {
         setState(() => _loading = false);
@@ -256,10 +247,7 @@ class _IconMattingEditorPageState extends State<IconMattingEditorPage> {
       _cropRect = null;
     });
     try {
-      final canvas = img.Image(width: image.width, height: image.height);
-      img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
-      img.compositeImage(canvas, image);
-      final jpg = img.encodeJpg(canvas, quality: 88);
+      final jpg = await compute(_compositeJpgSync, image);
       final path = await AiMattingService.matteBytes(jpg);
       await _loadMatted(path);
     } on AiMattingException catch (e) {
@@ -271,6 +259,23 @@ class _IconMattingEditorPageState extends State<IconMattingEditorPage> {
       if (mounted) {
         setState(() => _loading = false);
         _snack('抠图失败，请重试');
+      }
+    }
+  }
+
+  /// 将当前图片顺时针旋转 90°（可无限次点击，累计旋转）。
+  Future<void> _rotate90() async {
+    final image = _image;
+    if (image == null || _loading) return;
+    setState(() => _loading = true);
+    try {
+      final (rotated, png) = await compute(_rotate90Sync, image);
+      final saved = await AiMattingService.savePng(png, prefix: 'icon_rotated');
+      await _showImage(saved, png, rotated);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loading = false);
+        _snack('旋转失败，请重试');
       }
     }
   }
@@ -314,37 +319,6 @@ class _IconMattingEditorPageState extends State<IconMattingEditorPage> {
     return Offset(
       base.width <= 0 ? 0 : x / base.width * image.width,
       base.height <= 0 ? 0 : y / base.height * image.height,
-    );
-  }
-
-  /// 裁掉透明边缘，让主图居中占满显示区。
-  static img.Image _trimTransparent(img.Image src) {
-    var minX = src.width;
-    var minY = src.height;
-    var maxX = 0;
-    var maxY = 0;
-    for (var y = 0; y < src.height; y++) {
-      for (var x = 0; x < src.width; x++) {
-        if (src.getPixel(x, y).a > 16) {
-          if (x < minX) minX = x;
-          if (x > maxX) maxX = x;
-          if (y < minY) minY = y;
-          if (y > maxY) maxY = y;
-        }
-      }
-    }
-    if (maxX <= minX || maxY <= minY) return src;
-    const pad = 2;
-    minX = (minX - pad).clamp(0, src.width - 1);
-    minY = (minY - pad).clamp(0, src.height - 1);
-    maxX = (maxX + pad).clamp(0, src.width - 1);
-    maxY = (maxY + pad).clamp(0, src.height - 1);
-    return img.copyCrop(
-      src,
-      x: minX,
-      y: minY,
-      width: maxX - minX + 1,
-      height: maxY - minY + 1,
     );
   }
 
@@ -787,6 +761,8 @@ class _IconMattingEditorPageState extends State<IconMattingEditorPage> {
                       max: 5,
                       value: _sliderValue.clamp(_minScale, 5.0),
                       activeColor: AppColors.primary,
+                      inactiveColor: const Color(0xFFE3E8E6),
+                      thumbColor: AppColors.primary,
                       onChanged: _setScaleFromSlider,
                     ),
                   ),
@@ -802,6 +778,13 @@ class _IconMattingEditorPageState extends State<IconMattingEditorPage> {
                 icon: Icons.crop_free,
                 selected: _cropMode,
                 onTap: _cropMode ? _exitCropMode : _enterCropMode,
+              ),
+              const SizedBox(width: 18),
+              _toolButton(
+                label: '旋转',
+                icon: Icons.rotate_90_degrees_ccw,
+                selected: false,
+                onTap: _rotate90,
               ),
               const SizedBox(width: 18),
               _toolButton(
@@ -944,12 +927,13 @@ class _IconMattingEditorPageState extends State<IconMattingEditorPage> {
     var iy2 = br.dy.ceil().clamp(0, image.height);
     if (ix2 - ix < 2) ix2 = (ix + 2).clamp(0, image.width);
     if (iy2 - iy < 2) iy2 = (iy + 2).clamp(0, image.height);
-    final visible =
-        img.copyCrop(image, x: ix, y: iy, width: ix2 - ix, height: iy2 - iy);
-    final png = img.encodePng(visible);
     try {
+      final (visible, png) = await compute(
+        _cropEncodeSync,
+        (image, ix, iy, ix2 - ix, iy2 - iy),
+      );
       final saved = await AiMattingService.savePng(
-        Uint8List.fromList(png),
+        png,
         prefix: 'icon_saved',
       );
       if (!mounted) return;
@@ -1010,4 +994,78 @@ class _CropOverlayPainter extends CustomPainter {
   @override
   bool shouldRepaint(_CropOverlayPainter oldDelegate) =>
       oldDelegate.rect != rect;
+}
+
+// ── 后台 isolate 图片处理（避免界面线程卡顿） ──────────────
+
+/// 解码 + 裁透明边 + 编码 PNG。
+(img.Image, Uint8List) _decodeTrimEncodeSync(Uint8List bytes) {
+  final decoded = img.decodeImage(bytes);
+  if (decoded == null) throw const AiMattingException('抠图结果异常，请重试');
+  final trimmed = _trimTransparentSync(decoded);
+  final png = img.encodePng(trimmed);
+  return (trimmed, Uint8List.fromList(png));
+}
+
+/// 解码 + 编码 PNG（原图）。
+(img.Image, Uint8List) _decodeEncodeSync(Uint8List bytes) {
+  final decoded = img.decodeImage(bytes);
+  if (decoded == null) throw const AiMattingException('无法读取原图');
+  final png = img.encodePng(decoded);
+  return (decoded, Uint8List.fromList(png));
+}
+
+/// 按选区裁剪 + 编码 PNG。
+(img.Image, Uint8List) _cropEncodeSync(
+  (img.Image, int, int, int, int) args,
+) {
+  final (image, x, y, w, h) = args;
+  final cropped = img.copyCrop(image, x: x, y: y, width: w, height: h);
+  final png = img.encodePng(cropped);
+  return (cropped, Uint8List.fromList(png));
+}
+
+/// 透明图合成到白底并编码 JPG（再次抠图用）。
+Uint8List _compositeJpgSync(img.Image image) {
+  final canvas = img.Image(width: image.width, height: image.height);
+  img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
+  img.compositeImage(canvas, image);
+  return Uint8List.fromList(img.encodeJpg(canvas, quality: 88));
+}
+
+/// 裁掉透明边缘，让主图居中占满显示区。
+img.Image _trimTransparentSync(img.Image src) {
+  var minX = src.width;
+  var minY = src.height;
+  var maxX = 0;
+  var maxY = 0;
+  for (var y = 0; y < src.height; y++) {
+    for (var x = 0; x < src.width; x++) {
+      if (src.getPixel(x, y).a > 16) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX <= minX || maxY <= minY) return src;
+  const pad = 2;
+  minX = (minX - pad).clamp(0, src.width - 1);
+  minY = (minY - pad).clamp(0, src.height - 1);
+  maxX = (maxX + pad).clamp(0, src.width - 1);
+  maxY = (maxY + pad).clamp(0, src.height - 1);
+  return img.copyCrop(
+    src,
+    x: minX,
+    y: minY,
+    width: maxX - minX + 1,
+    height: maxY - minY + 1,
+  );
+}
+/// 后台 isolate：图片顺时针旋转 90° 并编码 PNG。
+(img.Image, Uint8List) _rotate90Sync(img.Image image) {
+  final rotated = img.copyRotate(image, angle: 90);
+  final png = img.encodePng(rotated);
+  return (rotated, Uint8List.fromList(png));
 }

@@ -13,7 +13,7 @@ class LongPressDeleteCard extends StatefulWidget {
     this.onTap,
     required this.onDelete,
     this.title = '删除资产',
-    this.message = '删除后不可恢复，确认要删除该资产吗？',
+    this.message = '删除后将移入回收站，30 天内可恢复。确认要删除该资产吗？',
     this.confirmLabel = '确认删除',
   });
 

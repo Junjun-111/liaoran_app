@@ -10,6 +10,7 @@ import '../models/subscription.dart';
 import '../state/asset_store.dart';
 import '../state/settings_store.dart';
 import '../state/subscription_store.dart';
+import '../state/trash_store.dart';
 import '../state/wishlist_store.dart';
 
 /// 备份文件的原生写入通道（Android 端 `liaoran/backup`）。
@@ -36,6 +37,11 @@ class BackupManager {
 
   /// 导出全部数据为 JSON 字符串
   static String buildPayload() {
+    return jsonEncode(_buildPayloadCore());
+  }
+
+  /// 构建 JSON 数据主体（不含照片内容）。
+  static Map<String, dynamic> _buildPayloadCore() {
     final settings = SettingsStore.instance;
     final payload = <String, dynamic>{
       'version': _version,
@@ -57,20 +63,28 @@ class BackupManager {
         'tags': settings.tags,
         'lockEnabled': settings.lockEnabled,
         'passcode': settings.passcode,
+        'nickname': settings.nickname,
+        'avatarPath': settings.avatarPath,
       },
     };
+    payload['files'] = <String, String>{};
+    return payload;
+  }
 
-    // 收集本地照片（图标/附件/头像），随备份一起带走
+  /// 异步收集本地照片（图标/附件/头像）并生成完整备份内容。
+  /// 用异步读取避免界面线程卡顿。
+  static Future<String> buildPayloadAsync() async {
+    final payload = _buildPayloadCore();
     final files = <String, String>{};
     var seq = 0;
-    String? collect(String? path) {
+    Future<String?> collect(String? path) async {
       if (path == null || path.isEmpty || path.endsWith('.svg')) return path;
       final file = File(path);
       if (!file.existsSync()) return path;
       seq++;
       final id = 'f$seq';
       try {
-        files[id] = base64Encode(file.readAsBytesSync());
+        files[id] = base64Encode(await file.readAsBytes());
         return 'backup://$id';
       } catch (_) {
         return path;
@@ -79,20 +93,21 @@ class BackupManager {
 
     for (final a in payload['assets'] as List) {
       final m = a as Map<String, dynamic>;
-      m['icon'] = collect(m['icon'] as String?);
-      m['attachmentPath'] = collect(m['attachmentPath'] as String?);
+      m['icon'] = await collect(m['icon'] as String?);
+      m['attachmentPath'] = await collect(m['attachmentPath'] as String?);
     }
     for (final s in payload['subscriptions'] as List) {
       final m = s as Map<String, dynamic>;
-      m['icon'] = collect(m['icon'] as String?);
-      m['attachmentPath'] = collect(m['attachmentPath'] as String?);
+      m['icon'] = await collect(m['icon'] as String?);
+      m['attachmentPath'] = await collect(m['attachmentPath'] as String?);
     }
     for (final w in payload['wishes'] as List) {
       final m = w as Map<String, dynamic>;
-      m['icon'] = collect(m['icon'] as String?);
+      m['icon'] = await collect(m['icon'] as String?);
     }
     final settingsMap = payload['settings'] as Map<String, dynamic>;
-    settingsMap['avatarPath'] = collect(settingsMap['avatarPath'] as String?);
+    settingsMap['avatarPath'] =
+        await collect(settingsMap['avatarPath'] as String?);
 
     payload['files'] = files;
     return jsonEncode(payload);
@@ -100,8 +115,8 @@ class BackupManager {
 
   /// 把当前数据自动存档到应用私有目录（坚果云还原前的安全网）。
   static Future<String> createBackup() async {
-    final name = 'backup_${DateTime.now().millisecondsSinceEpoch}.json';
-    final content = buildPayload();
+    final name = '了然backup_${DateTime.now().millisecondsSinceEpoch}.json';
+    final content = await buildPayloadAsync();
     await BackupService.write(name, content);
     return name;
   }
@@ -161,6 +176,9 @@ class BackupManager {
     ];
     WishlistStore.instance.replaceAll(wishes);
 
+    // 回收站与备份状态保持一致（备份内容不含回收站）
+    TrashStore.instance.clear();
+
     // 设置
     final settingsJson = data['settings'] as Map<String, dynamic>?;
     if (settingsJson != null) {
@@ -187,6 +205,11 @@ class BackupManager {
       } else {
         settings.disableLock();
       }
+      final nickname = settingsJson['nickname'] as String?;
+      if (nickname != null && nickname.isNotEmpty) {
+        settings.updateNickname(nickname);
+      }
+      settings.updateAvatarPath(settingsJson['avatarPath'] as String?);
     }
 
     return '恢复成功：资产 ${assets.length}、订阅 ${subscriptions.length}、心愿 ${wishes.length}';

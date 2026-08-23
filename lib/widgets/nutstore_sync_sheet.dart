@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/backup_service.dart';
 import '../services/nutstore_service.dart';
+import '../state/settings_store.dart';
 import '../theme/app_theme.dart';
 
 /// 坚果云同步弹层：配置 / 备份 / 还原 / 管理 四个标签页。
@@ -132,7 +133,7 @@ class _NutstoreSyncSheetState extends State<NutstoreSyncSheet> {
     });
     try {
       final name = NutstoreService.backupName(DateTime.now());
-      final content = BackupManager.buildPayload();
+      final content = await BackupManager.buildPayloadAsync();
       await NutstoreService.uploadBackup(name, content);
       if (mounted) {
         setState(() => _loading = false);
@@ -677,10 +678,12 @@ class _NutstoreSyncSheetState extends State<NutstoreSyncSheet> {
             onTap: _backupNow,
           ),
           const SizedBox(height: 16),
+          _autoBackupSwitch(),
+          const SizedBox(height: 16),
           _infoCard(
             icon: Icons.calendar_today_outlined,
             title: '命名规范',
-            content: 'backup_YYYYMMDD_HHmmss.json',
+            content: '了然backup_YYYYMMDD_HHmmss.json',
           ),
           const SizedBox(height: 8),
           _infoCard(
@@ -753,6 +756,95 @@ class _NutstoreSyncSheetState extends State<NutstoreSyncSheet> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _autoBackupSwitch() {
+    return ListenableBuilder(
+      listenable: SettingsStore.instance,
+      builder: (context, _) {
+        final enabled = SettingsStore.instance.autoBackupEnabled;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF4FAF8),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE3E8E6)),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.event_repeat,
+                size: 20,
+                color: _green,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '每周自动备份',
+                      style: TextStyle(
+                        fontFamily: AppFonts.manrope,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      enabled ? '每周日自动上传到云端' : '开启后每周日自动上传到云端',
+                      style: const TextStyle(
+                        fontFamily: AppFonts.manrope,
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  SettingsStore.instance.updateAutoBackupEnabled(!enabled);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  curve: AppMotion.easeOut,
+                  width: 46,
+                  height: 26,
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: enabled ? _green : const Color(0xFFD8DCE1),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: AnimatedAlign(
+                    duration: const Duration(milliseconds: 160),
+                    curve: AppMotion.easeOut,
+                    alignment:
+                        enabled ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Container(
+                      width: 22,
+                      height: 22,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color(0x26000000),
+                            blurRadius: 4,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -872,8 +964,9 @@ class _NutstoreSyncSheetState extends State<NutstoreSyncSheet> {
   }
 
   static String _prettyName(String name) {
-    final match = RegExp(r'backup_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})')
-        .firstMatch(name);
+    final match =
+        RegExp(r'(?:了然)?backup_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})')
+            .firstMatch(name);
     if (match == null) return name;
     return '${match[1]}-${match[2]}-${match[3]} '
         '${match[4]}:${match[5]}:${match[6]}';
@@ -909,6 +1002,7 @@ class _NutstoreSyncSheetState extends State<NutstoreSyncSheet> {
       child: TextField(
         controller: controller,
         obscureText: obscure,
+        keyboardType: TextInputType.text,
         autocorrect: false,
         enableSuggestions: false,
         style: const TextStyle(

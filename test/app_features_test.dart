@@ -10,6 +10,7 @@ import 'package:liaoran_app/pages/add_flow_page.dart';
 import 'package:liaoran_app/pages/lock_screen.dart';
 import 'package:liaoran_app/pages/my_assets_page.dart';
 import 'package:liaoran_app/pages/subscription_page.dart';
+import 'package:liaoran_app/services/lock_gate.dart';
 import 'package:liaoran_app/state/asset_store.dart';
 import 'package:liaoran_app/state/settings_store.dart';
 import 'package:liaoran_app/state/subscription_store.dart';
@@ -46,28 +47,24 @@ void main() {
   });
 
   group('应用锁定', () {
-    testWidgets('错误密码提示，正确密码解锁', (WidgetTester tester) async {
+    testWidgets('锁定页使用系统指纹验证', (WidgetTester tester) async {
       SettingsStore.instance.enableLock('1234');
 
       await tester.pumpWidget(
         const MaterialApp(home: Scaffold(body: Text('base'))),
       );
-      tester.state<NavigatorState>(find.byType(Navigator)).push(
-            MaterialPageRoute(builder: (_) => const LockScreen()),
-          );
-      await tester.pumpAndSettle();
+      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+      navigator.push(
+        MaterialPageRoute(builder: (_) => const LockScreen()),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('已锁定'), findsOneWidget);
-
-      await tester.enterText(find.byType(TextField), '0000');
-      await tester.tap(find.text('解锁'));
+      expect(find.text('使用手机系统指纹/面容解锁应用'), findsOneWidget);
+      LockGate.lockScreenShowing = false;
+      navigator.pop();
       await tester.pump();
-      expect(find.text('密码错误，请重试'), findsOneWidget);
-
-      await tester.enterText(find.byType(TextField), '1234');
-      await tester.tap(find.text('解锁'));
-      await tester.pumpAndSettle();
-      expect(find.text('已锁定'), findsNothing);
       expect(find.text('base'), findsOneWidget);
     });
   });
@@ -150,7 +147,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('其他'), findsOneWidget);
+      expect(find.text('自定义'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

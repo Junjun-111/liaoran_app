@@ -15,6 +15,9 @@ class Subscription {
     this.remark = '',
     this.icon,
     this.attachmentPath,
+    this.notifyEnabled = true,
+    this.notifyDaysBefore = 3,
+    this.notifyHour = 9,
     required this.createdAt,
   });
 
@@ -60,8 +63,35 @@ class Subscription {
   /// 截图 / 发票附件本地路径（可选）
   final String? attachmentPath;
 
+  /// 是否接收到期提醒
+  final bool notifyEnabled;
+
+  /// 提前几天提醒（1 / 3 / 7）
+  final int notifyDaysBefore;
+
+  /// 提醒时间（小时）
+  final int notifyHour;
+
   /// 创建时间
   final DateTime createdAt;
+
+  /// 累计订阅金额：从首次订阅到当前周期（或至今），按扣款周期估算的总花费。
+  double get cumulativeAmount {
+    final start = firstDate;
+    final end = expiryDate ?? DateTime.now();
+    if (cycle == '无' || start == null) return amount;
+    var months =
+        (end.year - start.year) * 12 + (end.month - start.month) + 1;
+    if (months < 1) months = 1;
+    switch (cycle) {
+      case '包季':
+        return amount * ((months + 2) ~/ 3);
+      case '包年':
+        return amount * ((months + 11) ~/ 12);
+      default:
+        return amount * months;
+    }
+  }
 
   /// 按扣款周期折算的月均金额（包月×1、包季÷3、包年÷12、无=0）。
   double get monthlyAmount {
@@ -93,6 +123,9 @@ class Subscription {
         'remark': remark,
         'icon': icon,
         'attachmentPath': attachmentPath,
+        'notifyEnabled': notifyEnabled,
+        'notifyDaysBefore': notifyDaysBefore,
+        'notifyHour': notifyHour,
         'createdAt': createdAt.toIso8601String(),
       };
 
@@ -111,6 +144,9 @@ class Subscription {
         remark: json['remark'] as String? ?? '',
         icon: json['icon'] as String?,
         attachmentPath: json['attachmentPath'] as String?,
+        notifyEnabled: json['notifyEnabled'] as bool? ?? true,
+        notifyDaysBefore: (json['notifyDaysBefore'] as num?)?.toInt() ?? 3,
+        notifyHour: (json['notifyHour'] as num?)?.toInt() ?? 9,
         createdAt: DateTime.parse(json['createdAt'] as String),
       );
 

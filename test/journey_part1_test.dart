@@ -92,11 +92,10 @@ void main() {
 
     await tester.tap(find.text('⇋更换图标'));
     await tester.pumpAndSettle();
-    expect(find.text('选择图标'), findsOneWidget);
-
-    await tester.tap(find.text('账单'));
-    await tester.pumpAndSettle();
-    expect(find.text('选择图标'), findsNothing);
+    expect(find.text('拍摄 / 选择照片'), findsOneWidget);
+    expect(find.text('拍照'), findsOneWidget);
+    expect(find.text('从相册选择'), findsOneWidget);
+    expect(find.text('输入 emoji'), findsOneWidget);
   });
 
   testWidgets('第5步 Care 开关展开到期时间字段', (WidgetTester tester) async {
@@ -160,7 +159,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, 'iPhone 15 Pro');
     await tester.enterText(find.byType(TextField).at(1), '8799');
-    await tester.tap(find.text('2026年8月17日'));
+    await tester.tap(find.text(_todayText()));
     await tester.pumpAndSettle();
     await tester.tap(find.text('确定'));
     await tester.pumpAndSettle();
@@ -300,7 +299,7 @@ void main() {
     await tester.tap(find.text('MacBook'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('记录卖出'));
+    await tester.tap(find.text('已卖出').last);
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, '4000');
     await tester.tap(find.text('保存'));
@@ -342,4 +341,9 @@ void main() {
 
     expect(AssetStore.instance.isEmpty, isTrue);
   });
+}
+
+String _todayText() {
+  final now = DateTime.now();
+  return '${now.year}年${now.month}月${now.day}日';
 }

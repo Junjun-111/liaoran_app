@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import '../data/in_memory/in_memory_wishlist_repository.dart';
+import '../data/local/local_wishlist_repository.dart';
 import '../domain/models/wishlist_item.dart';
 import '../domain/repositories/wishlist_repository.dart';
 
@@ -9,9 +9,15 @@ class WishlistStore extends ChangeNotifier {
   WishlistStore._(this._repo);
 
   static final WishlistStore instance =
-      WishlistStore._(InMemoryWishlistRepository.instance);
+      WishlistStore._(LocalWishlistRepository.instance);
 
   final WishlistRepository _repo;
+
+  /// 启动时从手机本地恢复心愿数据。
+  Future<void> load() async {
+    await _repo.load();
+    notifyListeners();
+  }
 
   List<WishlistItem> get items => _repo.items;
   bool get isEmpty => _repo.isEmpty;

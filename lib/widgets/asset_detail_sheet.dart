@@ -12,6 +12,8 @@ import '../theme/app_theme.dart';
 import '../pages/add_flow_page.dart';
 import 'app_date_picker.dart';
 import 'dialog_controllers.dart';
+import 'investment_widgets.dart';
+import 'maintenance_widgets.dart';
 import 'item_icon.dart';
 
 /// 资产详情底部面板（首页 / 我的资产页共用）。
@@ -104,7 +106,7 @@ class _AssetDetailSheetState extends State<AssetDetailSheet> {
       ),
     );
     if (ok == true && mounted) {
-      AssetStore.instance.remove(_current);
+      AssetStore.instance.moveToTrash(_current);
       Navigator.of(context).pop();
     }
   }
@@ -238,6 +240,7 @@ class _AssetDetailSheetState extends State<AssetDetailSheet> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: remarkCtrl,
+                    keyboardType: TextInputType.text,
                     style: const TextStyle(
                       fontFamily: AppFonts.manrope,
                       fontSize: 15,
@@ -570,6 +573,17 @@ class _AssetDetailSheetState extends State<AssetDetailSheet> {
                 ),
                 child: Row(
                   children: [
+                    if (asset.investments.isNotEmpty) ...[
+                      _StatItem(
+                        label: '累计价值',
+                        value: MoneyFormatter.format(
+                          asset.purchasePrice + asset.cumulativeInvestment,
+                          decimals: decimals,
+                          currency: currency,
+                        ),
+                      ),
+                      const _VLine(),
+                    ],
                     _StatItem(label: '买入价', value: priceText),
                     const _VLine(),
                     _StatItem(label: '使用天数', value: '${calc.daysUsed} 天'),
@@ -577,6 +591,62 @@ class _AssetDetailSheetState extends State<AssetDetailSheet> {
                     _StatItem(label: '日均成本', value: cpdText),
                   ],
                 ),
+              ),
+              const SizedBox(height: 16),
+              InvestmentCard(
+                investments: asset.investments,
+                currency: currency,
+                decimals: decimals,
+                onOpen: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => InvestmentRecordsPage(
+                      initial: asset.investments,
+                      currency: currency,
+                      decimals: decimals,
+                      editable: true,
+                      onChanged: (records) {
+                        _update(_current.copyWith(investments: records));
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              MaintenanceCard(
+                records: asset.maintenanceRecords,
+                currency: currency,
+                decimals: decimals,
+                onOpen: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => MaintenanceRecordsPage(
+                      initial: asset.maintenanceRecords,
+                      currency: currency,
+                      decimals: decimals,
+                      editable: true,
+                      onChanged: (records) {
+                        _update(
+                          _current.copyWith(maintenanceRecords: records),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                onAdd: () async {
+                  final record = await showDialog<MaintenanceRecord>(
+                    context: context,
+                    builder: (_) => const MaintenanceDialog(),
+                  );
+                  if (record != null) {
+                    _update(
+                      _current.copyWith(
+                        maintenanceRecords: [
+                          ..._current.maintenanceRecords,
+                          record,
+                        ],
+                      ),
+                    );
+                  }
+                },
               ),
               const SizedBox(height: 16),
               Row(

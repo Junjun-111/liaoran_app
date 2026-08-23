@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../core/formatters/money_formatter.dart';
+import '../domain/models/asset.dart';
+import '../domain/models/asset_lifecycle_status.dart';
 import '../domain/models/wishlist_item.dart';
+import '../state/asset_store.dart';
 import '../state/settings_store.dart';
 import '../state/wishlist_store.dart';
 import '../theme/app_theme.dart';
@@ -11,6 +14,7 @@ import '../widgets/page_scaffold.dart';
 import '../widgets/primary_cta_button.dart';
 import '../widgets/dialog_controllers.dart';
 import '../widgets/item_icon.dart';
+import '../widgets/top_snackbar.dart';
 import 'add_flow_page.dart';
 
 /// 心愿清单页：心愿列表 + 攒钱进度 + 详情（攒一笔 / 完成）。
@@ -44,9 +48,9 @@ class _EmptyState extends StatelessWidget {
   const _EmptyState();
 
   void _openAdd(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AddFlowPage(initialTab: 2)),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const AddFlowPage(initialTab: 2)));
   }
 
   @override
@@ -104,10 +108,7 @@ class _WishSection extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         for (var i = 0; i < items.length; i++) ...[
-          _WishCard(
-            item: items[i],
-            onDelete: () => store.remove(items[i]),
-          ),
+          _WishCard(item: items[i], onDelete: () => store.remove(items[i])),
           if (i < items.length - 1) const SizedBox(height: 12),
         ],
       ],
@@ -128,6 +129,7 @@ class _WishCard extends StatelessWidget {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (_) => _WishDetailSheet(item: item),
     );
   }
@@ -135,7 +137,10 @@ class _WishCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final decimals = SettingsStore.instance.decimalPlaces;
-    final targetText = MoneyFormatter.format(item.targetAmount, decimals: decimals);
+    final targetText = MoneyFormatter.format(
+      item.targetAmount,
+      decimals: decimals,
+    );
     final percent = (item.progress * 100).round();
 
     return RepaintBoundary(
@@ -164,10 +169,7 @@ class _WishCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  ItemIconBadge(
-                    iconPath: item.icon,
-                    fallbackSvg: _defaultIcon,
-                  ),
+                  ItemIconBadge(iconPath: item.icon, fallbackSvg: _defaultIcon),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -264,7 +266,8 @@ class _WishDetailSheet extends StatefulWidget {
 }
 
 class _WishDetailSheetState extends State<_WishDetailSheet> {
-  WishlistItem get _current => WishlistStore.instance.items
+  WishlistItem get _current =>
+      WishlistStore.instance.items
           .where((w) => w.id == widget.item.id)
           .firstOrNull ??
       widget.item;
@@ -296,8 +299,9 @@ class _WishDetailSheetState extends State<_WishDetailSheet> {
     final item = _current;
     _update(
       item.copyWith(
-        savedAmount:
-            (item.savedAmount - amount).clamp(0.0, double.infinity).toDouble(),
+        savedAmount: (item.savedAmount - amount)
+            .clamp(0.0, double.infinity)
+            .toDouble(),
         transactions: [
           ...item.transactions,
           WishTransaction(
@@ -321,79 +325,81 @@ class _WishDetailSheetState extends State<_WishDetailSheet> {
           final ctrl = ctrls[0];
           return StatefulBuilder(
             builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: const Text(
-            '攒一笔',
-            style: TextStyle(
-              fontFamily: AppFonts.manrope,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          content: TextField(
-            controller: ctrl,
-            autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: const TextStyle(
-              fontFamily: AppFonts.manrope,
-              fontSize: 15,
-              color: AppColors.textPrimary,
-            ),
-            decoration: InputDecoration(
-              labelText: '本次攒入金额',
-              errorText: error ? '请输入大于 0 的金额' : null,
-              labelStyle: const TextStyle(
-                fontFamily: AppFonts.manrope,
-                color: AppColors.textHint,
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFE3E8E6)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: Color(0xFF3DC88A),
-                  width: 1.5,
-                ),
-              ),
-            ),
-          ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text(
-                '取消',
+              title: const Text(
+                '攒一笔',
                 style: TextStyle(
                   fontFamily: AppFonts.manrope,
-                  color: AppColors.textHint,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
                 ),
               ),
-            ),
-            TextButton(
-              onPressed: () {
-                final value = double.tryParse(ctrl.text.trim());
-                if (value == null || value <= 0) {
-                  setDialogState(() => error = true);
-                  return;
-                }
-                Navigator.of(ctx).pop(value);
-              },
-              child: const Text(
-                '保存',
-                style: TextStyle(
+              content: TextField(
+                controller: ctrl,
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                style: const TextStyle(
                   fontFamily: AppFonts.manrope,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF10B981),
+                  fontSize: 15,
+                  color: AppColors.textPrimary,
+                ),
+                decoration: InputDecoration(
+                  labelText: '本次攒入金额',
+                  errorText: error ? '请输入大于 0 的金额' : null,
+                  labelStyle: const TextStyle(
+                    fontFamily: AppFonts.manrope,
+                    color: AppColors.textHint,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE3E8E6)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF3DC88A),
+                      width: 1.5,
+                    ),
+                  ),
                 ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text(
+                    '取消',
+                    style: TextStyle(
+                      fontFamily: AppFonts.manrope,
+                      color: AppColors.textHint,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    final value = double.tryParse(ctrl.text.trim());
+                    if (value == null || value <= 0) {
+                      setDialogState(() => error = true);
+                      return;
+                    }
+                    Navigator.of(ctx).pop(value);
+                  },
+                  child: const Text(
+                    '保存',
+                    style: TextStyle(
+                      fontFamily: AppFonts.manrope,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF10B981),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            ],
-          ),
           );
         },
       ),
@@ -430,8 +436,9 @@ class _WishDetailSheetState extends State<_WishDetailSheet> {
               content: TextField(
                 controller: ctrl,
                 autofocus: true,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 style: const TextStyle(
                   fontFamily: AppFonts.manrope,
                   fontSize: 15,
@@ -476,9 +483,7 @@ class _WishDetailSheetState extends State<_WishDetailSheet> {
                       return;
                     }
                     if (amount > _current.savedAmount) {
-                      setDialogState(
-                        () => errorText = '取出金额不能超过已攒金额',
-                      );
+                      setDialogState(() => errorText = '取出金额不能超过已攒金额');
                       return;
                     }
                     Navigator.of(ctx).pop(amount);
@@ -507,8 +512,82 @@ class _WishDetailSheetState extends State<_WishDetailSheet> {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (_) => _WishHistorySheet(item: _current),
     );
+  }
+
+  /// 心愿一键转资产：按已攒金额生成资产，并移除该心愿。
+  Future<void> _convertToAsset() async {
+    final item = _current;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          '转为资产',
+          style: TextStyle(
+            fontFamily: AppFonts.manrope,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        content: Text(
+          '将「${item.name}」按已攒 '
+          '${MoneyFormatter.format(item.savedAmount, decimals: SettingsStore.instance.decimalPlaces)} '
+          '转为资产？转换后该心愿将从心愿清单移除。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text(
+              '取消',
+              style: TextStyle(
+                fontFamily: AppFonts.manrope,
+                color: AppColors.textHint,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text(
+              '转为资产',
+              style: TextStyle(
+                fontFamily: AppFonts.manrope,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    final now = DateTime.now();
+    AssetStore.instance.add(
+      Asset(
+        id: 'asset_from_wish_${item.id}',
+        name: item.name,
+        category: item.category,
+        currency: 'CNY',
+        purchasePrice: item.savedAmount > 0
+            ? item.savedAmount
+            : item.targetAmount,
+        purchaseDate: now,
+        status: AssetLifecycleStatus.active,
+        remark: item.remark,
+        icon: item.icon,
+        createdAt: now,
+      ),
+    );
+    WishlistStore.instance.remove(item);
+    if (mounted) {
+      Navigator.of(context).pop();
+      showTopSnackBar(context, '「${item.name}」已转为资产');
+    }
   }
 
   @override
@@ -516,237 +595,282 @@ class _WishDetailSheetState extends State<_WishDetailSheet> {
     final item = _current;
     final decimals = SettingsStore.instance.decimalPlaces;
     final percent = (item.progress * 100).round();
+    // 攒满 100% 才显示「完成心愿 / 转为资产」双按钮
+    final fullProgress = item.progress >= 1.0;
 
     return SafeArea(
       top: false,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: _showHistory,
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF4FAF8),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFFE3E8E6)),
-                    ),
-                    child: const Icon(
-                      Icons.table_chart_outlined,
-                      size: 18,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE3E8E6),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 36),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              item.name,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: AppFonts.manrope,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              '${item.category} · ${item.completed ? '已完成' : '进行中'}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: AppFonts.manrope,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF4FAF8),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Row(
-                children: [
-                  _StatItem(
-                    label: '目标金额',
-                    value: MoneyFormatter.format(
-                      item.targetAmount,
-                      decimals: decimals,
-                    ),
-                  ),
-                  const _VLine(),
-                  _StatItem(
-                    label: '已攒',
-                    value: MoneyFormatter.format(
-                      item.savedAmount,
-                      decimals: decimals,
-                    ),
-                  ),
-                  const _VLine(),
-                  _StatItem(label: '进度', value: '$percent%'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: Container(
-                height: 10,
-                color: AppColors.emptyIconBg,
-                alignment: Alignment.centerLeft,
-                child: FractionallySizedBox(
-                  widthFactor: item.progress,
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [Color(0xFF4DD49A), Color(0xFF2BAF74)],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            if (!item.completed)
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final amount in const [50, 200, 600, 1000])
-                    _QuickSaveChip(
-                      label: '$amount',
-                      onTap: () => _recordDeposit(amount.toDouble()),
-                    ),
-                  _QuickSaveChip(label: '自定义', onTap: _deposit),
-                ],
-              ),
-            if (!item.completed) const SizedBox(height: 16),
-            if (!item.completed) ...[
+      child: SingleChildScrollView(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
               Row(
                 children: [
+                  GestureDetector(
+                    onTap: _showHistory,
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF4FAF8),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFFE3E8E6)),
+                      ),
+                      child: const Icon(
+                        Icons.table_chart_outlined,
+                        size: 18,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
                   Expanded(
-                    child: GestureDetector(
-                      onTap: _deposit,
+                    child: Center(
                       child: Container(
-                        height: 40,
-                        alignment: Alignment.center,
+                        width: 40,
+                        height: 4,
                         decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          '攒一笔',
-                          style: TextStyle(
-                            fontFamily: AppFonts.manrope,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
+                          color: const Color(0xFFE3E8E6),
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: _withdraw,
-                      child: Container(
-                        height: 40,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF4FAF8),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFE3E8E6)),
-                        ),
-                        child: const Text(
-                          '取出',
-                          style: TextStyle(
-                            fontFamily: AppFonts.manrope,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFFE5484D),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  const SizedBox(width: 36),
                 ],
               ),
+              const SizedBox(height: 16),
+              Text(
+                item.name,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: AppFonts.manrope,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${item.category} · ${item.completed ? '已完成' : '进行中'}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: AppFonts.manrope,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4FAF8),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Row(
+                  children: [
+                    _StatItem(
+                      label: '目标金额',
+                      value: MoneyFormatter.format(
+                        item.targetAmount,
+                        decimals: decimals,
+                      ),
+                    ),
+                    const _VLine(),
+                    _StatItem(
+                      label: '已攒',
+                      value: MoneyFormatter.format(
+                        item.savedAmount,
+                        decimals: decimals,
+                      ),
+                    ),
+                    const _VLine(),
+                    _StatItem(label: '进度', value: '$percent%'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  height: 10,
+                  color: AppColors.emptyIconBg,
+                  alignment: Alignment.centerLeft,
+                  child: FractionallySizedBox(
+                    widthFactor: item.progress,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [Color(0xFF4DD49A), Color(0xFF2BAF74)],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (!item.completed)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final amount in const [50, 200, 600, 1000])
+                      _QuickSaveChip(
+                        label: '$amount',
+                        onTap: () => _recordDeposit(amount.toDouble()),
+                      ),
+                    _QuickSaveChip(label: '自定义', onTap: _deposit),
+                  ],
+                ),
+              if (!item.completed) const SizedBox(height: 16),
+              if (!item.completed) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _deposit,
+                        child: Container(
+                          height: 40,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            // 攒满 100% 后不再是主操作，不用绿色
+                            color: fullProgress
+                                ? const Color(0xFFF4FAF8)
+                                : AppColors.primary,
+                            borderRadius: BorderRadius.circular(12),
+                            border: fullProgress
+                                ? Border.all(color: const Color(0xFFE3E8E6))
+                                : null,
+                          ),
+                          child: Text(
+                            '攒一笔',
+                            style: TextStyle(
+                              fontFamily: AppFonts.manrope,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: fullProgress
+                                  ? AppColors.textSecondary
+                                  : Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _withdraw,
+                        child: Container(
+                          height: 40,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF4FAF8),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE3E8E6)),
+                          ),
+                          child: const Text(
+                            '取出',
+                            style: TextStyle(
+                              fontFamily: AppFonts.manrope,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFFE5484D),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 10),
-              GestureDetector(
-                onTap: () => _update(_current.copyWith(completed: true)),
-                child: Container(
-                  height: 40,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF4FAF8),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE3E8E6)),
-                  ),
-                  child: const Text(
-                    '完成心愿',
-                    style: TextStyle(
-                      fontFamily: AppFonts.manrope,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
+              if (!fullProgress)
+                GestureDetector(
+                  onTap: () => _update(_current.copyWith(completed: true)),
+                  child: Container(
+                    height: 44,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF4FAF8),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE3E8E6)),
+                    ),
+                    child: const Text(
+                      '完成心愿',
+                      style: TextStyle(
+                        fontFamily: AppFonts.manrope,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ] else ...[
-              GestureDetector(
-                onTap: () => _update(_current.copyWith(completed: false)),
-                child: Container(
-                  height: 40,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF4FAF8),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE3E8E6)),
-                  ),
-                  child: const Text(
-                    '重新开启',
-                    style: TextStyle(
-                      fontFamily: AppFonts.manrope,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
+                )
+              else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => _update(
+                          _current.copyWith(completed: !_current.completed),
+                        ),
+                        child: Container(
+                          height: 44,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF4FAF8),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE3E8E6)),
+                          ),
+                          child: Text(
+                            _current.completed ? '重新开启' : '完成心愿',
+                            style: const TextStyle(
+                              fontFamily: AppFonts.manrope,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _convertToAsset,
+                        child: Container(
+                          height: 44,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            '转为资产',
+                            style: TextStyle(
+                              fontFamily: AppFonts.manrope,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -840,16 +964,9 @@ class _WishHistorySheet extends StatelessWidget {
             const SizedBox(height: 14),
             Row(
               children: const [
-                Expanded(
-                  flex: 2,
-                  child: _HistoryHeader(label: '日期'),
-                ),
-                Expanded(
-                  child: _HistoryHeader(label: '存入'),
-                ),
-                Expanded(
-                  child: _HistoryHeader(label: '取出'),
-                ),
+                Expanded(flex: 2, child: _HistoryHeader(label: '日期')),
+                Expanded(child: _HistoryHeader(label: '存入')),
+                Expanded(child: _HistoryHeader(label: '取出')),
               ],
             ),
             const SizedBox(height: 8),
@@ -879,8 +996,7 @@ class _WishHistorySheet extends StatelessWidget {
                       tx.amount,
                       decimals: decimals,
                     );
-                    final isDeposit =
-                        tx.type == WishTransactionType.deposit;
+                    final isDeposit = tx.type == WishTransactionType.deposit;
                     return Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,

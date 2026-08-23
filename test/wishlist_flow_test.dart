@@ -35,7 +35,7 @@ void main() {
     await tester.enterText(find.byType(TextField).first, '新款 MacBook Pro');
     await tester.enterText(find.byType(TextField).at(1), '20000');
 
-    await tester.tap(find.text('2026年8月17日'));
+    await tester.tap(find.text(_todayText()));
     await tester.pumpAndSettle();
     await tester.tap(find.text('确定'));
     await tester.pumpAndSettle();
@@ -84,3 +84,8 @@ Widget _zhApp(Widget home) => MaterialApp(
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       home: home,
     );
+
+String _todayText() {
+  final now = DateTime.now();
+  return '${now.year}年${now.month}月${now.day}日';
+}

@@ -11,6 +11,11 @@ class InMemoryWishlistRepository implements WishlistRepository {
   final List<WishlistItem> _items = [];
 
   @override
+  Future<void> load() async {
+    // 内存实现无需读取本地数据。
+  }
+
+  @override
   List<WishlistItem> get items => List.unmodifiable(_items);
 
   @override

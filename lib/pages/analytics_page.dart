@@ -547,9 +547,11 @@ class _TrendCard extends StatelessWidget {
           else
             SizedBox(
               height: 220,
-              child: CustomPaint(
-                size: const Size(double.infinity, 220),
-                painter: _TrendPainter(points: points),
+              child: RepaintBoundary(
+                child: CustomPaint(
+                  size: const Size(double.infinity, 220),
+                  painter: _TrendPainter(points: points),
+                ),
               ),
             ),
         ],
@@ -804,9 +806,11 @@ class _CategoryDistributionCard extends StatelessWidget {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    CustomPaint(
-                      size: const Size.square(160),
-                      painter: _PieChartPainter(slices: chartSlices),
+                    RepaintBoundary(
+                      child: CustomPaint(
+                        size: const Size.square(160),
+                        painter: _PieChartPainter(slices: chartSlices),
+                      ),
                     ),
                     Container(
                       width: 88,

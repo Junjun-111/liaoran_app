@@ -60,8 +60,12 @@ void main() {
     // 更换图标
     await tester.tap(find.text('⇋更换图标'));
     await tester.pumpAndSettle();
-    expect(find.text('选择图标'), findsOneWidget);
-    await tester.tap(find.text('账单'));
+    expect(find.text('拍摄 / 选择照片'), findsOneWidget);
+    await tester.tap(find.text('输入 emoji'));
+    await tester.pumpAndSettle();
+    expect(find.text('输入 emoji'), findsWidgets);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('取消'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField).first, 'iCloud+');
@@ -179,13 +183,15 @@ void main() {
     // 更换图标
     await tester.tap(find.text('⇋更换图标'));
     await tester.pumpAndSettle();
-    expect(find.text('选择图标'), findsOneWidget);
-    await tester.tap(find.text('喜欢'));
+    expect(find.text('拍摄 / 选择照片'), findsOneWidget);
+    await tester.tap(find.text('输入 emoji'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('取消'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField).first, '相机');
     await tester.enterText(find.byType(TextField).at(1), '10000');
-    await tester.tap(find.text('2026年8月17日'));
+    await tester.tap(find.text(_todayText()));
     await tester.pumpAndSettle();
     await tester.tap(find.text('确定'));
     await tester.pumpAndSettle();
@@ -379,24 +385,16 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('nav_4')));
     await tester.pumpAndSettle();
 
+    // 锁定入口存在；系统指纹认证无法在测试环境弹出，
+    // 验证「立即锁定」按钮可用即可
+    expect(find.text('立即锁定'), findsOneWidget);
     await tester.tap(find.text('立即锁定'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).at(0), '1234');
-    await tester.enterText(find.byType(TextField).at(1), '1234');
-    await tester.tap(find.text('确定'));
-    await tester.pumpAndSettle();
-
-    expect(SettingsStore.instance.lockEnabled, isTrue);
-    expect(find.text('已锁定'), findsOneWidget);
-
-    await tester.enterText(find.byType(TextField).first, '0000');
-    await tester.tap(find.text('解锁'));
     await tester.pump();
-    expect(find.text('密码错误，请重试'), findsOneWidget);
-
-    await tester.enterText(find.byType(TextField).first, '1234');
-    await tester.tap(find.text('解锁'));
-    await tester.pumpAndSettle();
-    expect(find.text('已锁定'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
+}
+
+String _todayText() {
+  final now = DateTime.now();
+  return '${now.year}年${now.month}月${now.day}日';
 }

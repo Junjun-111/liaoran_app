@@ -258,10 +258,10 @@ class NutstoreService {
     }
   }
 
-  /// 生成云端备份文件名：backup_YYYYMMDD_HHmmss.json
+  /// 生成云端备份文件名：了然backup_YYYYMMDD_HHmmss.json
   static String backupName(DateTime time) {
     String two(int v) => v.toString().padLeft(2, '0');
-    return 'backup_${time.year}${two(time.month)}${two(time.day)}'
+    return '了然backup_${time.year}${two(time.month)}${two(time.day)}'
         '_${two(time.hour)}${two(time.minute)}${two(time.second)}.json';
   }
 }

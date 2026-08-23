@@ -3,7 +3,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../core/formatters/money_formatter.dart';
-import '../domain/calculators/cost_per_day_calculator.dart';
 import '../domain/models/asset_lifecycle_status.dart';
 import '../state/asset_store.dart';
 import '../state/settings_store.dart';
@@ -36,17 +35,7 @@ class AssetOverviewCard extends StatelessWidget {
           store.totalValue,
           decimals: decimals,
         );
-        final dailyCost = store.items.fold<double>(0, (sum, a) {
-          final r = const CostPerDayCalculator().calculate(
-            purchasePrice: a.purchasePrice,
-            purchaseDate: a.purchaseDate,
-            status: a.status,
-            retiredDate: a.retiredDate,
-            salePrice: a.latestSale?.salePrice,
-            saleDate: a.latestSale?.saleDate,
-          );
-          return sum + (r.costPerDay ?? 0);
-        });
+        final dailyCost = store.dailyCost;
         final dailyText =
             MoneyFormatter.format(dailyCost, decimals: decimals);
 
@@ -54,7 +43,7 @@ class AssetOverviewCard extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(24),
             child: BackdropFilter(
-              filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
               child: Container(
               height: 200,
               padding: const EdgeInsets.all(24),

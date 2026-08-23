@@ -22,6 +22,8 @@ class Asset {
     this.tags = const [],
     required this.createdAt,
     this.saleRecords = const [],
+    this.investments = const [],
+    this.maintenanceRecords = const [],
   });
 
   final String id;
@@ -68,6 +70,21 @@ class Asset {
   /// 卖出记录（可多条，取最新一条参与计算）
   final List<SaleRecord> saleRecords;
 
+  /// 后续投入记录（配件、维修、升级等追加投入）
+  final List<InvestmentRecord> investments;
+
+  /// 维修 / 保养记录（花费计入累计投入）
+  final List<MaintenanceRecord> maintenanceRecords;
+
+  /// 累计投入金额
+  double get cumulativeInvestment =>
+      investments.fold(0.0, (sum, r) => sum + r.amount) +
+      maintenanceRecords.fold(0.0, (sum, r) => sum + r.cost);
+
+  /// 维修 / 保养总花费
+  double get totalMaintenanceCost =>
+      maintenanceRecords.fold(0.0, (sum, r) => sum + r.cost);
+
   /// 最近一次卖出记录（按卖出日期取最新；无记录时 null）
   SaleRecord? get latestSale {
     if (saleRecords.isEmpty) return null;
@@ -97,6 +114,8 @@ class Asset {
     Object? attachmentPath = _unset,
     List<String>? tags,
     List<SaleRecord>? saleRecords,
+    List<InvestmentRecord>? investments,
+    List<MaintenanceRecord>? maintenanceRecords,
   }) {
     return Asset(
       id: id,
@@ -120,6 +139,8 @@ class Asset {
       tags: tags ?? this.tags,
       createdAt: createdAt,
       saleRecords: saleRecords ?? this.saleRecords,
+      investments: investments ?? this.investments,
+      maintenanceRecords: maintenanceRecords ?? this.maintenanceRecords,
     );
   }
 
@@ -141,6 +162,10 @@ class Asset {
         'tags': tags,
         'createdAt': createdAt.toIso8601String(),
         'saleRecords': [for (final r in saleRecords) r.toJson()],
+        'investments': [for (final r in investments) r.toJson()],
+        'maintenanceRecords': [
+          for (final r in maintenanceRecords) r.toJson(),
+        ],
       };
 
   factory Asset.fromJson(Map<String, dynamic> json) => Asset(
@@ -166,6 +191,14 @@ class Asset {
         saleRecords: [
           for (final r in (json['saleRecords'] as List? ?? const []))
             SaleRecord.fromJson(r as Map<String, dynamic>),
+        ],
+        investments: [
+          for (final r in (json['investments'] as List? ?? const []))
+            InvestmentRecord.fromJson(r as Map<String, dynamic>),
+        ],
+        maintenanceRecords: [
+          for (final r in (json['maintenanceRecords'] as List? ?? const []))
+            MaintenanceRecord.fromJson(r as Map<String, dynamic>),
         ],
       );
 }
@@ -201,6 +234,77 @@ class SaleRecord {
         salePrice: (json['salePrice'] as num).toDouble(),
         saleDate: DateTime.parse(json['saleDate'] as String),
         remark: json['remark'] as String? ?? '',
+        createdAt: DateTime.parse(json['createdAt'] as String),
+      );
+}
+/// 后续投入记录（累计投入 = 各条金额之和）。
+class InvestmentRecord {
+  const InvestmentRecord({
+    required this.amount,
+    required this.date,
+    this.remark = '',
+    required this.createdAt,
+  });
+
+  /// 投入金额
+  final double amount;
+
+  /// 投入日期
+  final DateTime date;
+
+  /// 备注（用途等）
+  final String remark;
+
+  final DateTime createdAt;
+
+  Map<String, dynamic> toJson() => {
+        'amount': amount,
+        'date': date.toIso8601String(),
+        'remark': remark,
+        'createdAt': createdAt.toIso8601String(),
+      };
+
+  factory InvestmentRecord.fromJson(Map<String, dynamic> json) =>
+      InvestmentRecord(
+        amount: (json['amount'] as num).toDouble(),
+        date: DateTime.parse(json['date'] as String),
+        remark: json['remark'] as String? ?? '',
+        createdAt: DateTime.parse(json['createdAt'] as String),
+      );
+}
+
+/// 维修 / 保养记录（维修保养花费计入资产累计投入）。
+class MaintenanceRecord {
+  const MaintenanceRecord({
+    required this.cost,
+    required this.date,
+    this.description = '',
+    required this.createdAt,
+  });
+
+  /// 维修 / 保养花费
+  final double cost;
+
+  /// 维修 / 保养日期
+  final DateTime date;
+
+  /// 维修 / 保养说明（如：换电池、常规保养）
+  final String description;
+
+  final DateTime createdAt;
+
+  Map<String, dynamic> toJson() => {
+        'cost': cost,
+        'date': date.toIso8601String(),
+        'description': description,
+        'createdAt': createdAt.toIso8601String(),
+      };
+
+  factory MaintenanceRecord.fromJson(Map<String, dynamic> json) =>
+      MaintenanceRecord(
+        cost: (json['cost'] as num).toDouble(),
+        date: DateTime.parse(json['date'] as String),
+        description: json['description'] as String? ?? '',
         createdAt: DateTime.parse(json['createdAt'] as String),
       );
 }

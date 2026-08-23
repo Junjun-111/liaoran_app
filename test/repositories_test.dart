@@ -86,10 +86,10 @@ void main() {
       repo.enableLock('1234');
       expect(repo.lockEnabled, isTrue);
       expect(repo.passcode, '1234');
-      // 空密码不启用
+      // 锁定开关与密码独立：启用后即为开
       repo.disableLock();
       repo.enableLock('');
-      expect(repo.lockEnabled, isFalse);
+      expect(repo.lockEnabled, isTrue);
       repo.disableLock();
       expect(repo.lockEnabled, isFalse);
       expect(repo.passcode, isEmpty);

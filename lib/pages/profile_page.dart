@@ -1,10 +1,8 @@
 import 'dart:io' show File;
 import 'dart:ui' show ImageFilter;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:local_auth/local_auth.dart';
-
 import '../domain/dictionaries.dart';
 import '../services/lock_gate.dart';
 import '../services/upload_service.dart';
@@ -15,18 +13,16 @@ import '../widgets/nutstore_sync_sheet.dart';
 import '../widgets/page_header.dart';
 import '../widgets/page_scaffold.dart';
 import '../widgets/top_snackbar.dart';
+import 'about_page.dart';
 import 'lock_screen.dart';
-
+import 'trash_page.dart';
 /// 个人中心页：设置全部可交互（货币/小数点/视图样式/分类标签/坚果云同步/锁定）。
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key, this.onNavTap});
-
   final ValueChanged<int>? onNavTap;
-
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
-
 class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
@@ -98,8 +94,8 @@ class _ProfilePageState extends State<ProfilePage> {
                           Positioned.fill(
                             child: BackdropFilter(
                               filter: ImageFilter.blur(
-                                sigmaX: 4,
-                                sigmaY: 4,
+                                sigmaX: 3,
+                                sigmaY: 3,
                               ),
                               child: Container(
                                 color: Colors.black.withValues(alpha: 0.25),
@@ -125,6 +121,16 @@ class _ProfilePageState extends State<ProfilePage> {
                     title: '标签管理',
                     onTap: () => _manageNames(context, title: '标签管理', isTag: true),
                   ),
+                  _SettingsItem(
+                    materialIcon: Icons.delete_sweep_outlined,
+                    title: '回收站',
+                    subtitle: '最近删除 30 天内可恢复',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const TrashPage(),
+                      ),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 20),
@@ -142,6 +148,17 @@ class _ProfilePageState extends State<ProfilePage> {
                 ],
               ),
               const SizedBox(height: 20),
+              _SettingsGroup(
+                title: '其他',
+                items: [
+                  _SettingsItem(
+                    materialIcon: Icons.info_outline,
+                    title: '关于了然',
+                    onTap: () => _openAbout(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
               _LockButton(onTap: () => _handleLock(context)),
               const SizedBox(height: 16),
               const _Signature(),
@@ -151,9 +168,7 @@ class _ProfilePageState extends State<ProfilePage> {
       },
     );
   }
-
   // ── 选项选择（底部弹层） ──────────────────────────────────────
-
   Future<void> _showOptionsSheet(
     BuildContext context, {
     required String title,
@@ -242,7 +257,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
     if (picked != null) onSelect(picked);
   }
-
   void _pickCurrency(BuildContext context) {
     final settings = SettingsStore.instance;
     _showOptionsSheet(
@@ -253,7 +267,6 @@ class _ProfilePageState extends State<ProfilePage> {
       onSelect: settings.updateCurrency,
     );
   }
-
   void _pickDecimals(BuildContext context) {
     final settings = SettingsStore.instance;
     _showOptionsSheet(
@@ -266,7 +279,6 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
-
   void _pickViewStyle(BuildContext context) {
     final settings = SettingsStore.instance;
     _showOptionsSheet(
@@ -277,7 +289,6 @@ class _ProfilePageState extends State<ProfilePage> {
       onSelect: settings.updateViewStyle,
     );
   }
-
   Future<void> _editProfile(BuildContext context) async {
     final result = await showDialog<_ProfileEditResult>(
       context: context,
@@ -287,9 +298,7 @@ class _ProfilePageState extends State<ProfilePage> {
     SettingsStore.instance.updateNickname(result.nickname);
     SettingsStore.instance.updateAvatarPath(result.avatarPath);
   }
-
   // ── 分类 / 标签管理 ───────────────────────────────────────────
-
   void _manageNames(
     BuildContext context, {
     required String title,
@@ -301,9 +310,13 @@ class _ProfilePageState extends State<ProfilePage> {
       builder: (_) => _NameManagerSheet(title: title, isTag: isTag),
     );
   }
+  void _openAbout(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AboutPage()),
+    );
+  }
 
   // ── 应用锁定 ──────────────────────────────────────────────────
-
   Future<void> _handleLock(BuildContext context) async {
     final settings = SettingsStore.instance;
     final auth = LocalAuthentication();
@@ -316,7 +329,6 @@ class _ProfilePageState extends State<ProfilePage> {
         }
         return;
       }
-
       // 立即锁定：开启指纹锁并强制下次进入也要验证；
       // 锁定页本身就是反馈，需要指纹才能回到应用
       settings.enableLock('');
@@ -331,10 +343,8 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     }
   }
-
   Future<String?> _setupPasscode(BuildContext context) async {
     String? error;
-
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => DialogControllers(
@@ -419,7 +429,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
     return result;
   }
-
   Future<bool?> _verifyPasscode(BuildContext context) async {
     String? error;
     final result = await showDialog<bool>(
@@ -488,12 +497,10 @@ class _ProfilePageState extends State<ProfilePage> {
     );
     return result;
   }
-
   void _snack(BuildContext context, String message) {
     showTopSnackBar(context, message);
   }
 }
-
 /// 头像 + 用户名
 class _Avatar extends StatelessWidget {
   const _Avatar({
@@ -501,11 +508,9 @@ class _Avatar extends StatelessWidget {
     required this.avatarPath,
     required this.onEdit,
   });
-
   final String nickname;
   final String? avatarPath;
   final VoidCallback onEdit;
-
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -544,9 +549,6 @@ class _Avatar extends StatelessWidget {
                         cacheWidth: (80 *
                                 MediaQuery.of(context).devicePixelRatio)
                             .round(),
-                        cacheHeight: (80 *
-                                MediaQuery.of(context).devicePixelRatio)
-                            .round(),
                       ),
               ),
             ),
@@ -571,39 +573,31 @@ class _Avatar extends StatelessWidget {
     );
   }
 }
-
 class _ProfileEditResult {
   const _ProfileEditResult({required this.nickname, required this.avatarPath});
-
   final String nickname;
   final String? avatarPath;
 }
-
 class _ProfileEditDialog extends StatefulWidget {
   const _ProfileEditDialog();
-
   @override
   State<_ProfileEditDialog> createState() => _ProfileEditDialogState();
 }
-
 class _ProfileEditDialogState extends State<_ProfileEditDialog> {
   late final _nameCtrl =
       TextEditingController(text: SettingsStore.instance.nickname);
   String? _avatarPath = SettingsStore.instance.avatarPath;
-
   @override
   void dispose() {
     _nameCtrl.dispose();
     super.dispose();
   }
-
   Future<void> _pickAvatar() async {
     final path = await UploadService.pickImage();
     if (path != null && mounted) {
       setState(() => _avatarPath = path);
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -651,9 +645,6 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
                         cacheWidth: (72 *
                                 MediaQuery.of(context).devicePixelRatio)
                             .round(),
-                        cacheHeight: (72 *
-                                MediaQuery.of(context).devicePixelRatio)
-                            .round(),
                       ),
               ),
             ),
@@ -662,6 +653,7 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
           TextField(
             controller: _nameCtrl,
             autofocus: true,
+            keyboardType: TextInputType.text,
             decoration: InputDecoration(
               labelText: '昵称',
               labelStyle: const TextStyle(
@@ -715,14 +707,11 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
     );
   }
 }
-
 /// 设置分组：小标题 + 白色卡片（含多行）
 class _SettingsGroup extends StatelessWidget {
   const _SettingsGroup({required this.title, required this.items});
-
   final String title;
   final List<Widget> items;
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -770,11 +759,11 @@ class _SettingsGroup extends StatelessWidget {
     );
   }
 }
-
 /// 设置项：图标 + 标题/副标题 + 右箭头（可点击）
 class _SettingsItem extends StatelessWidget {
   const _SettingsItem({
-    required this.icon,
+    this.icon = '',
+    this.materialIcon,
     required this.title,
     this.iconLeft = 0,
     this.iconSize = 32,
@@ -783,8 +772,8 @@ class _SettingsItem extends StatelessWidget {
     this.badgeColor,
     this.onTap,
   });
-
   final String icon;
+  final IconData? materialIcon;
   final String title;
   final double iconLeft;
   final double iconSize;
@@ -792,7 +781,6 @@ class _SettingsItem extends StatelessWidget {
   final String? badge;
   final Color? badgeColor;
   final VoidCallback? onTap;
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -813,11 +801,29 @@ class _SettingsItem extends StatelessWidget {
                     Positioned(
                       left: 0,
                       top: 0,
-                      child: SvgPicture.asset(
-                        'assets/CodeBuddyAssets/37_333/$icon.svg',
-                        width: iconSize,
-                        height: iconSize,
-                      ),
+                      child: materialIcon != null
+                          ? Container(
+                              width: iconSize,
+                              height: iconSize,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [Color(0xFF4DD49A), Color(0xFF2BAF74)],
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                materialIcon,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                            )
+                          : SvgPicture.asset(
+                              'assets/CodeBuddyAssets/37_333/$icon.svg',
+                              width: iconSize,
+                              height: iconSize,
+                            ),
                     ),
                     if (badge != null)
                       Positioned(
@@ -882,13 +888,10 @@ class _SettingsItem extends StatelessWidget {
     );
   }
 }
-
 /// 红色"立即锁定"按钮（已开启时变为关闭入口）
 class _LockButton extends StatelessWidget {
   const _LockButton({required this.onTap});
-
   final VoidCallback onTap;
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -924,11 +927,9 @@ class _LockButton extends StatelessWidget {
     );
   }
 }
-
 /// 底部署名
 class _Signature extends StatelessWidget {
   const _Signature();
-
   @override
   Widget build(BuildContext context) {
     return const Center(
@@ -944,24 +945,19 @@ class _Signature extends StatelessWidget {
     );
   }
 }
-
 /// 分类 / 标签管理弹层
 class _NameManagerSheet extends StatefulWidget {
   const _NameManagerSheet({required this.title, required this.isTag});
-
   final String title;
   final bool isTag;
-
   @override
   State<_NameManagerSheet> createState() => _NameManagerSheetState();
 }
-
 class _NameManagerSheetState extends State<_NameManagerSheet> {
   List<String> get _names =>
       widget.isTag
           ? SettingsStore.instance.tags
           : SettingsStore.instance.categories;
-
   Future<void> _add() async {
     final name = await showDialog<String>(
       context: context,
@@ -984,6 +980,7 @@ class _NameManagerSheetState extends State<_NameManagerSheet> {
         content: TextField(
           controller: ctrl,
           autofocus: true,
+          keyboardType: TextInputType.text,
           decoration: const InputDecoration(
             labelText: '名称',
             labelStyle: TextStyle(
@@ -1027,7 +1024,6 @@ class _NameManagerSheetState extends State<_NameManagerSheet> {
       }
     }
   }
-
   Future<void> _rename(String oldName) async {
     final newName = await showDialog<String>(
       context: context,
@@ -1050,6 +1046,7 @@ class _NameManagerSheetState extends State<_NameManagerSheet> {
         content: TextField(
           controller: ctrl,
           autofocus: true,
+          keyboardType: TextInputType.text,
           decoration: const InputDecoration(labelText: '新名称'),
         ),
         actions: [
@@ -1087,7 +1084,6 @@ class _NameManagerSheetState extends State<_NameManagerSheet> {
       }
     }
   }
-
   Future<void> _remove(String name) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -1137,7 +1133,6 @@ class _NameManagerSheetState extends State<_NameManagerSheet> {
       }
     }
   }
-
     @override
     Widget build(BuildContext context) {
       return ListenableBuilder(

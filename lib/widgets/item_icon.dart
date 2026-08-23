@@ -1,22 +1,16 @@
 import 'dart:io' show File;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-
 /// emoji 图标的存储前缀：icon 字段为 `emoji:<emoji>` 时按文字渲染。
 const String emojiIconPrefix = 'emoji:';
-
 /// 把 emoji 转成可存储的 icon 值。
 String emojiIcon(String emoji) => '$emojiIconPrefix$emoji';
-
 /// 判断 icon 值是否为 emoji 图标。
 bool isEmojiIconPath(String? path) =>
     path != null && path.startsWith(emojiIconPrefix);
-
 /// 从 icon 值中取出 emoji 字符；不是 emoji 图标时返回 null。
 String? emojiFromIconPath(String? path) =>
     isEmojiIconPath(path) ? path!.substring(emojiIconPrefix.length) : null;
-
 /// emoji 图标展示：无背景、居中、距容器边缘留 2、尽量放大填满方块。
 class EmojiIconSquare extends StatelessWidget {
   const EmojiIconSquare({
@@ -24,10 +18,8 @@ class EmojiIconSquare extends StatelessWidget {
     required this.emoji,
     this.size = 100,
   });
-
   final String emoji;
   final double size;
-
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -46,7 +38,6 @@ class EmojiIconSquare extends StatelessWidget {
     );
   }
 }
-
 /// 图标统一渲染：既支持内置 SVG 图标，也支持本地图片（AI 抠图结果）。
 ///
 /// - 路径以 `.svg` 结尾 → 按内置资源渲染（叠加白色）；
@@ -61,12 +52,10 @@ class ItemIcon extends StatelessWidget {
     this.fallbackIcon,
     required this.size,
   });
-
   final String? iconPath;
   final String? fallbackSvg;
   final IconData? fallbackIcon;
   final double size;
-
   @override
   Widget build(BuildContext context) {
     final path = iconPath;
@@ -105,14 +94,12 @@ class ItemIcon extends StatelessWidget {
       File(path),
       width: size,
       height: size,
-      fit: BoxFit.cover,
+      fit: BoxFit.contain,
       // 按实际显示尺寸解码，避免大图占满内存拖慢滚动
       cacheWidth: (size * MediaQuery.of(context).devicePixelRatio).round(),
-      cacheHeight: (size * MediaQuery.of(context).devicePixelRatio).round(),
     );
   }
 }
-
 /// 列表卡片上的图标：照片（AI 抠图结果）直接展示，无绿色圆底；
 /// 内置 SVG / 默认图标保留绿色圆底。
 class ItemIconBadge extends StatelessWidget {
@@ -125,26 +112,20 @@ class ItemIconBadge extends StatelessWidget {
     this.iconSize = 22,
     this.photoSize = 100,
   });
-
   final String? iconPath;
   final String? fallbackSvg;
   final IconData? fallbackIcon;
-
   /// 默认图标的绿色圆底直径。
   final double circleSize;
-
   /// 默认图标（SVG/Icon）在圆底内的尺寸。
   final double iconSize;
-
   /// 照片图标的直接展示尺寸。
   final double photoSize;
-
   bool get _isPhoto =>
       iconPath != null &&
       iconPath!.isNotEmpty &&
       !iconPath!.endsWith('.svg') &&
       !isEmojiIconPath(iconPath);
-
   @override
   Widget build(BuildContext context) {
     final emoji = emojiFromIconPath(iconPath);
@@ -160,8 +141,6 @@ class ItemIconBadge extends StatelessWidget {
           height: photoSize,
           fit: BoxFit.contain,
           cacheWidth:
-              (photoSize * MediaQuery.of(context).devicePixelRatio).round(),
-          cacheHeight:
               (photoSize * MediaQuery.of(context).devicePixelRatio).round(),
         ),
       );

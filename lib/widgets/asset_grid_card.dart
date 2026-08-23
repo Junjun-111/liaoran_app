@@ -1,8 +1,6 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-
 import '../core/formatters/money_formatter.dart';
 import '../domain/calculators/cost_per_day_calculator.dart';
 import '../domain/models/asset.dart';
@@ -10,16 +8,12 @@ import '../domain/models/asset_lifecycle_status.dart';
 import '../state/settings_store.dart';
 import '../theme/app_theme.dart';
 import 'item_icon.dart';
-
 /// 双列宫格卡片（按用户 Figma 重绘）：
 /// 照片 + 状态/已回本胶囊；名称行带 Care 文件图标；价格 | 天数；日均成本。
 class AssetGridCard extends StatelessWidget {
   const AssetGridCard({super.key, required this.asset});
-
   final Asset asset;
-
   static const _defaultIcon = 'assets/CodeBuddyAssets/42_951/6.svg';
-
   @override
   Widget build(BuildContext context) {
     final decimals = SettingsStore.instance.decimalPlaces;
@@ -54,7 +48,6 @@ class AssetGridCard extends StatelessWidget {
         asset.icon!.isNotEmpty &&
         !asset.icon!.endsWith('.svg') &&
         !isEmojiIconPath(asset.icon);
-
     return RepaintBoundary(
       child: Container(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
@@ -87,9 +80,6 @@ class AssetGridCard extends StatelessWidget {
                           cacheWidth: (80 *
                               MediaQuery.of(context).devicePixelRatio)
                               .round(),
-                          cacheHeight: (80 *
-                              MediaQuery.of(context).devicePixelRatio)
-                              .round(),
                           errorBuilder: (_, _, _) => _photoFallback(),
                         )
                       : _photoFallback(),
@@ -120,25 +110,28 @@ class AssetGridCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  asset.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: AppFonts.manrope,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF0E1627),
-                  ),
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        asset.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: AppFonts.manrope,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0E1627),
+                        ),
+                      ),
+                    ),
+                    if (asset.careExpiryDate != null) ...[
+                      const SizedBox(width: 8),
+                      const _CareFileIcon(),
+                    ],
+                  ],
                 ),
               ),
-              if (asset.careExpiryDate != null) ...[
-                const SizedBox(width: 4),
-                Transform.translate(
-                  offset: const Offset(-75, 0),
-                  child: const _CareFileIcon(),
-                ),
-              ],
             ],
           ),
           const SizedBox(height: 6),
@@ -191,7 +184,6 @@ class AssetGridCard extends StatelessWidget {
       ),
     );
   }
-
   Widget _photoFallback() {
     final emoji = emojiFromIconPath(asset.icon);
     if (emoji != null) {
@@ -218,7 +210,6 @@ class AssetGridCard extends StatelessWidget {
     );
   }
 }
-
 /// 胶囊状态标签：小圆点 + 文字
 class _Pill extends StatelessWidget {
   const _Pill({
@@ -226,11 +217,9 @@ class _Pill extends StatelessWidget {
     required this.dotColor,
     required this.textColor,
   });
-
   final String label;
   final Color dotColor;
   final Color textColor;
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -266,11 +255,9 @@ class _Pill extends StatelessWidget {
     );
   }
 }
-
 /// Care 文件图标：浅绿底 + 绿色文档
 class _CareFileIcon extends StatelessWidget {
   const _CareFileIcon();
-
   @override
   Widget build(BuildContext context) {
     return SvgPicture.asset(

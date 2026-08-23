@@ -40,7 +40,7 @@ class BottomNavBar extends StatelessWidget {
               borderRadius: BorderRadius.circular(33),
               child: RepaintBoundary(
                 child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                  filter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5),
                   child: Container(
                     height: 66,
                     padding: const EdgeInsets.symmetric(horizontal: 11),

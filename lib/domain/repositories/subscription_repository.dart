@@ -8,6 +8,9 @@ abstract class SubscriptionRepository {
   /// 只读订阅列表（新添加的排在前面）
   List<Subscription> get items;
 
+  /// 启动时从本地恢复订阅数据。
+  Future<void> load();
+
   bool get isEmpty;
 
   void add(Subscription subscription);

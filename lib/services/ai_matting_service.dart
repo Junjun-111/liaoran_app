@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 
@@ -62,7 +62,15 @@ class AiMattingService {
 
   /// 把图片压缩到最长边 1280px、JPG 质量 88（商品分割要求 <2000px、<3MB）。
   static Future<Uint8List> compress(File source) async {
-    final original = img.decodeImage(await source.readAsBytes());
+    final bytes = await source.readAsBytes();
+    // 解码/缩放/编码全部在后台 isolate 执行，避免界面卡顿
+    return compute(_compressSync, bytes);
+  }
+}
+
+/// 后台 isolate 执行的压缩流程。
+Uint8List _compressSync(Uint8List bytes) {
+    final original = img.decodeImage(bytes);
     if (original == null) {
       throw const AiMattingException('无法读取图片，请换一张试试');
     }
@@ -78,5 +86,4 @@ class AiMattingService {
       );
     }
     return Uint8List.fromList(img.encodeJpg(image, quality: 88));
-  }
 }

@@ -60,6 +60,8 @@ class PageScaffold extends StatelessWidget {
         systemNavigationBarContrastEnforced: false,
       ),
       child: Scaffold(
+        // 键盘弹出时不压缩页面高度，避免把底部悬浮导航栏顶起来
+        resizeToAvoidBottomInset: false,
         body: Stack(
           children: [
             // 背景渐变光斑（铺满整屏）

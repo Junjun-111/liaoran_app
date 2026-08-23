@@ -21,6 +21,8 @@ class InMemorySettingsRepository implements SettingsRepository {
   final List<String> _tags = [...Dictionaries.defaultTags];
   bool _lockEnabled = false;
   String _passcode = '';
+  bool _autoBackupEnabled = false;
+  DateTime? _lastAutoBackupAt;
 
   @override
   String get currency => _currency;
@@ -48,6 +50,12 @@ class InMemorySettingsRepository implements SettingsRepository {
 
   @override
   String get passcode => _passcode;
+
+  @override
+  bool get autoBackupEnabled => _autoBackupEnabled;
+
+  @override
+  DateTime? get lastAutoBackupAt => _lastAutoBackupAt;
 
   @override
   void updateCurrency(String value) {
@@ -129,5 +137,15 @@ class InMemorySettingsRepository implements SettingsRepository {
   void disableLock() {
     _passcode = '';
     _lockEnabled = false;
+  }
+
+  @override
+  void updateAutoBackupEnabled(bool enabled) {
+    _autoBackupEnabled = enabled;
+  }
+
+  @override
+  void updateLastAutoBackupAt(DateTime? time) {
+    _lastAutoBackupAt = time;
   }
 }

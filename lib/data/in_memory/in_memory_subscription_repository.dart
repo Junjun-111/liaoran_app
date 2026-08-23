@@ -14,6 +14,11 @@ class InMemorySubscriptionRepository implements SubscriptionRepository {
   final List<Subscription> _items = [];
 
   @override
+  Future<void> load() async {
+    // 内存实现无需读取本地数据。
+  }
+
+  @override
   List<Subscription> get items => List.unmodifiable(_items);
 
   @override

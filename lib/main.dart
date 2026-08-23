@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
@@ -10,11 +12,18 @@ import 'pages/my_assets_page.dart';
 import 'pages/profile_page.dart';
 import 'pages/subscription_page.dart';
 import 'pages/welcome_page.dart';
+import 'pages/update_notice_page.dart';
 import 'pages/wishlist_page.dart';
+import 'services/auto_backup_service.dart';
 import 'services/lock_gate.dart';
+import 'services/update_notice.dart';
+import 'services/notification_service.dart';
 import 'services/nutstore_service.dart';
 import 'state/asset_store.dart';
 import 'state/settings_store.dart';
+import 'state/subscription_store.dart';
+import 'state/trash_store.dart';
+import 'state/wishlist_store.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -22,10 +31,28 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // 先恢复手机本地保存的资产，再启动界面
   await AssetStore.instance.load();
+  // 恢复订阅与心愿，避免重启后丢失
+  await SubscriptionStore.instance.load();
+  await WishlistStore.instance.load();
+  // 恢复回收站并清理超期条目
+  await TrashStore.instance.load();
+  // 恢复个人设置（货币、分类、标签等），避免重启后丢失
+  await SettingsStore.instance.load();
   // 读取坚果云同步配置
   await NutstoreService.load();
   // 读取应用锁状态；已启用指纹锁的，冷启动也要先验证指纹
   await LockGate.load();
+  // 读取上次已看过的更新版本，用于“更新后首次打开”提示
+  await UpdateNotice.load();
+
+  // 本地通知：订阅到期 / Care 到期提醒
+  await NotificationService.instance.init();
+  await NotificationService.instance.requestPermission();
+  SubscriptionStore.instance.addListener(_onReminderDataChanged);
+  AssetStore.instance.addListener(_onReminderDataChanged);
+  await NotificationService.instance.rescheduleAll();
+  // 每周自动备份（开关开启 + 坚果云已配置时检查）
+  unawaited(AutoBackupService.maybeRun());
   if (LockGate.enabled && !SettingsStore.instance.lockEnabled) {
     SettingsStore.instance.enableLock('');
   }
@@ -70,7 +97,9 @@ class _RootShell extends StatefulWidget {
 
 class _RootShellState extends State<_RootShell> with WidgetsBindingObserver {
   int _index = 0;
+  int _maxVisited = 0;
   bool _gating = false;
+  final Map<int, Widget> _pages = {};
 
   @override
   void initState() {
@@ -102,6 +131,8 @@ class _RootShellState extends State<_RootShell> with WidgetsBindingObserver {
             false;
       }
       await LockGate.setFirstRunDone(true);
+      // 全新安装引导完成视为已看过本次更新，升级场景不受影响
+      await UpdateNotice.markSeen();
       if (mounted) {
         SettingsStore.instance.enableLock('');
         await Navigator.of(context).push(
@@ -113,6 +144,13 @@ class _RootShellState extends State<_RootShell> with WidgetsBindingObserver {
 
     if (LockGate.enabled) {
       await _requireUnlock();
+    }
+
+    // 版本更新提示：更新后首次打开时展示本次更新内容
+    if (UpdateNotice.shouldShow && mounted) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const UpdateNoticePage()),
+      );
     }
   }
 
@@ -153,21 +191,45 @@ class _RootShellState extends State<_RootShell> with WidgetsBindingObserver {
       return;
     }
     if (i == _index) return;
-    setState(() => _index = i);
+    setState(() {
+      _index = i;
+      if (i > _maxVisited) _maxVisited = i;
+    });
+  }
+
+  Widget _pageFor(int i) {
+    switch (i) {
+      case 0:
+        return HomePage(onNavTap: _onNavTap);
+      case 1:
+        return SubscriptionPage(onNavTap: _onNavTap);
+      case 2:
+        return WishlistPage(onNavTap: _onNavTap);
+      case 3:
+        return MyAssetsPage(onNavTap: _onNavTap);
+      default:
+        return ProfilePage(onNavTap: _onNavTap);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     // 标签切换为瞬时切换（与正常 App 一致，不做整页位移动画）
+    // 首屏只构建首页，其它页面首次进入时才构建，加快启动
     return IndexedStack(
       index: _index,
       children: [
-        HomePage(onNavTap: _onNavTap),
-        SubscriptionPage(onNavTap: _onNavTap),
-        WishlistPage(onNavTap: _onNavTap),
-        MyAssetsPage(onNavTap: _onNavTap),
-        ProfilePage(onNavTap: _onNavTap),
+        for (var i = 0; i <= _maxVisited; i++)
+          _pages.putIfAbsent(i, () => _pageFor(i)),
       ],
     );
   }
+}
+/// 订阅 / 资产变化后延迟 1 秒重排提醒，避免频繁操作时反复取消重排。
+Timer? _reminderDebounce;
+void _onReminderDataChanged() {
+  _reminderDebounce?.cancel();
+  _reminderDebounce = Timer(const Duration(seconds: 1), () {
+    NotificationService.instance.rescheduleAll();
+  });
 }
