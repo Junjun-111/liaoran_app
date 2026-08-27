@@ -27,6 +27,7 @@ class AssetGridCard extends StatelessWidget {
           );
     final calc = const CostPerDayCalculator().calculate(
       purchasePrice: asset.purchasePrice,
+      baseAmount: asset.costBasis,
       purchaseDate: asset.purchaseDate,
       status: asset.status,
       retiredDate: asset.retiredDate,

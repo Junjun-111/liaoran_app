@@ -68,6 +68,8 @@ class CostPerDayCalculator {
   /// - [salePrice] / [saleDate] 卖出价与卖出日期（仅 sold 使用；
   ///   卖出价未填时按“只算持有成本”处理，卖出日期未填时按今天截止）
   /// - [targetCpd] 目标日均成本（<= 0 视为未设置）
+  /// - [baseAmount] 日均成本的计算基数；null 时用 [purchasePrice]（买入价）。
+  ///   传入累计价值（买入价 + 累计投入 + 维修保养）时，日均成本按“累计价值”计算。
   CostPerDayResult calculate({
     required double purchasePrice,
     required DateTime purchaseDate,
@@ -76,6 +78,7 @@ class CostPerDayCalculator {
     double? salePrice,
     DateTime? saleDate,
     double? targetCpd,
+    double? baseAmount,
   }) {
     final ref = _dateOnly(referenceDate ?? DateTime.now());
     final buy = _dateOnly(purchaseDate);
@@ -94,14 +97,15 @@ class CostPerDayCalculator {
 
     // ── 日均成本 ──────────────────────────────────────────────────
     double? costPerDay;
-    if (purchasePrice > 0 && days != null && days > 0) {
+    final base = baseAmount ?? purchasePrice;
+    if (base > 0 && days != null && days > 0) {
       if (status == AssetLifecycleStatus.sold &&
           salePrice != null &&
           salePrice >= 0) {
-        final net = purchasePrice - salePrice;
+        final net = base - salePrice;
         costPerDay = net <= 0 ? 0.0 : net / days;
       } else {
-        costPerDay = purchasePrice / days;
+        costPerDay = base / days;
       }
     }
 
@@ -129,7 +133,7 @@ class CostPerDayCalculator {
           ? 1.0
           : (targetCpd / costPerDay).clamp(0.0, 1.0).toDouble();
       if (status == AssetLifecycleStatus.active && !isPaidBack && days != null) {
-        final totalDaysNeeded = (purchasePrice / targetCpd).ceil();
+        final totalDaysNeeded = (base / targetCpd).ceil();
         final remaining = totalDaysNeeded - days;
         daysToPayback = remaining < 0 ? 0 : remaining;
       }

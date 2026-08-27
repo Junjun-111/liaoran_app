@@ -53,6 +53,7 @@ class AssetStore extends ChangeNotifier {
       _cachedDailyCost = _repo.items.fold<double>(0, (sum, a) {
         final r = const CostPerDayCalculator().calculate(
           purchasePrice: a.purchasePrice,
+          baseAmount: a.costBasis,
           purchaseDate: a.purchaseDate,
           status: a.status,
           retiredDate: a.retiredDate,

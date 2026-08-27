@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:liaoran_app/domain/calculators/cost_per_day_calculator.dart';
 import 'package:liaoran_app/domain/dictionaries.dart';
+import 'package:liaoran_app/domain/models/asset.dart';
 import 'package:liaoran_app/domain/models/asset_lifecycle_status.dart';
 
 void main() {
@@ -200,5 +201,66 @@ void main() {
       expect(AssetLifecycleStatus.fromLabel('已卖出'), AssetLifecycleStatus.sold);
       expect(AssetLifecycleStatus.fromLabel('未知状态'), AssetLifecycleStatus.active);
     });
+  });
+
+  test('开启累计价值后日均成本按累计价值计算', () {
+    final calc = CostPerDayCalculator(referenceDate: DateTime(2026, 4, 11));
+    // 买入价 10000，使用 100 天
+    final purchaseDate = DateTime(2026, 1, 1);
+
+    // 关闭：按买入价 10000 / 100 天 = 100
+    final off = calc.calculate(
+      purchasePrice: 10000,
+      purchaseDate: purchaseDate,
+      status: AssetLifecycleStatus.active,
+      baseAmount: 10000,
+    );
+    expect(off.costPerDay, 100);
+
+    // 开启：累计价值 = 10000 + 2000 = 12000，/ 100 天 = 120
+    final on = calc.calculate(
+      purchasePrice: 10000,
+      purchaseDate: purchaseDate,
+      status: AssetLifecycleStatus.active,
+      baseAmount: 12000,
+    );
+    expect(on.costPerDay, 120);
+  });
+
+  test('资产 costBasis 随开关切换', () {
+    final asset = Asset(
+      id: 'a1',
+      name: 'MacBook',
+      category: '数码设备',
+      currency: 'CNY',
+      purchasePrice: 10000,
+      purchaseDate: DateTime(2026, 1, 1),
+      status: AssetLifecycleStatus.active,
+      createdAt: DateTime(2026, 1, 1),
+      investments: [
+        InvestmentRecord(
+          amount: 1500,
+          date: DateTime(2026, 2, 1),
+          createdAt: DateTime(2026, 2, 1),
+        ),
+      ],
+      maintenanceRecords: [
+        MaintenanceRecord(
+          cost: 500,
+          date: DateTime(2026, 3, 1),
+          createdAt: DateTime(2026, 3, 1),
+        ),
+      ],
+    );
+    expect(asset.costBasis, 10000);
+    expect(asset.costBasisIncludesInvestment, isFalse);
+
+    final enabled = asset.copyWith(costBasisIncludesInvestment: true);
+    expect(enabled.costBasis, 12000);
+
+    // 序列化往返保留开关
+    final restored = Asset.fromJson(enabled.toJson());
+    expect(restored.costBasisIncludesInvestment, isTrue);
+    expect(restored.costBasis, 12000);
   });
 }

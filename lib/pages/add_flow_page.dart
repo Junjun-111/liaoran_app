@@ -396,7 +396,10 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          _ConfirmCheckButton(onTap: onConfirm),
+          _ConfirmCheckButton(
+            key: const ValueKey('confirm_check_button'),
+            onTap: onConfirm,
+          ),
         ],
       ),
     );
@@ -404,7 +407,7 @@ class _TopBar extends StatelessWidget {
 }
 /// 绿色圆形提交按钮：绿底 + 中间白色对勾
 class _ConfirmCheckButton extends StatelessWidget {
-  const _ConfirmCheckButton({required this.onTap});
+  const _ConfirmCheckButton({super.key, required this.onTap});
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
@@ -1362,14 +1365,22 @@ class _Capsule extends StatelessWidget {
 }
 /// 重点关注 (Care) 开关行（Figma 42_951 资产表单）
 class _ToggleRow extends StatelessWidget {
-  const _ToggleRow({required this.value, required this.onChanged});
+  const _ToggleRow({
+    this.switchKey,
+    required this.value,
+    required this.onChanged,
+    this.title = '重点关注 (Care)',
+    this.subtitle = '开启后将在资产卡片中高亮显示',
+  });
+  final Key? switchKey;
   final bool value;
   final ValueChanged<bool> onChanged;
+  final String title;
+  final String subtitle;
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 80.15,
-      padding: const EdgeInsets.fromLTRB(15.79, 15.79, 15.79, 0),
+      padding: const EdgeInsets.fromLTRB(15.79, 13, 15.79, 13),
       decoration: BoxDecoration(
         color: _C.card,
         borderRadius: BorderRadius.circular(15.79),
@@ -1380,22 +1391,25 @@ class _ToggleRow extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
-                  '重点关注 (Care)',
-                  style: TextStyle(
+                  title,
+                  style: const TextStyle(
                     fontFamily: AppFonts.manrope,
                     fontSize: 16.92,
                     fontWeight: FontWeight.bold,
                     color: _C.text,
                   ),
                 ),
-                SizedBox(height: 4.26),
+                const SizedBox(height: 4.26),
                 Text(
-                  '开启后将在资产卡片中高亮显示',
-                  style: TextStyle(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
                     fontFamily: AppFonts.manrope,
-                    fontSize: 13.54,
+                    fontSize: 12.5,
+                    height: 1.3,
                     color: _C.subText,
                   ),
                 ),
@@ -1405,7 +1419,7 @@ class _ToggleRow extends StatelessWidget {
           Padding(
               padding: const EdgeInsets.only(top: 9.62),
               child: GestureDetector(
-                key: const ValueKey('care_switch'),
+                key: switchKey ?? const ValueKey('care_switch'),
                 onTap: () => onChanged(!value),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 160),
@@ -1573,6 +1587,8 @@ class _TwoColumns extends StatelessWidget {
     late List<String> _selectedTags = [...?widget.editing?.tags];
     late bool _careEnabled = widget.editing?.careExpiryDate != null;
     late DateTime? _careExpiryDate = widget.editing?.careExpiryDate;
+    late bool _costBasisIncludesInvestment =
+        widget.editing?.costBasisIncludesInvestment ?? false;
     late List<InvestmentRecord> _investments = [...?widget.editing?.investments];
     late List<MaintenanceRecord> _maintenanceRecords = [
       ...?widget.editing?.maintenanceRecords,
@@ -1720,6 +1736,7 @@ class _TwoColumns extends StatelessWidget {
         saleRecords: editing?.saleRecords ?? const [],
         investments: _investments,
         maintenanceRecords: _maintenanceRecords,
+        costBasisIncludesInvestment: _costBasisIncludesInvestment,
       );
       if (editing != null) {
         AssetStore.instance.update(asset);
@@ -1901,6 +1918,15 @@ class _TwoColumns extends StatelessWidget {
             attachmentPath: _attachmentPath,
             onPick: _pickUpload,
             onRemove: () => setState(() => _attachmentPath = null),
+          ),
+          const SizedBox(height: _kSectionGap),
+          _ToggleRow(
+            switchKey: const ValueKey('cost_basis_switch'),
+            value: _costBasisIncludesInvestment,
+            onChanged: (v) =>
+                setState(() => _costBasisIncludesInvestment = v),
+            title: '累值计价',
+            subtitle: '日均成本按累计价值计算',
           ),
           const SizedBox(height: _kSectionGap),
           const _FieldLabel('累计投入'),

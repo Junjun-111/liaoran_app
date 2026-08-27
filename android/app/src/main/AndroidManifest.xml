@@ -10,7 +10,7 @@
         android:maxSdkVersion="28"/>
 
     <application
-        android:label="liaoran_app"
+        android:label="了然"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

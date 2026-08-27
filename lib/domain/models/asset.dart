@@ -24,6 +24,7 @@ class Asset {
     this.saleRecords = const [],
     this.investments = const [],
     this.maintenanceRecords = const [],
+    this.costBasisIncludesInvestment = false,
   });
 
   final String id;
@@ -76,6 +77,10 @@ class Asset {
   /// 维修 / 保养记录（花费计入累计投入）
   final List<MaintenanceRecord> maintenanceRecords;
 
+  /// 日均成本是否按「累计价值」计算（买入价 + 累计投入 + 维修保养）。
+  /// 开启后日均成本反映每天实际花了多少钱；关闭则按买入价计算。
+  final bool costBasisIncludesInvestment;
+
   /// 累计投入金额
   double get cumulativeInvestment =>
       investments.fold(0.0, (sum, r) => sum + r.amount) +
@@ -84,6 +89,12 @@ class Asset {
   /// 维修 / 保养总花费
   double get totalMaintenanceCost =>
       maintenanceRecords.fold(0.0, (sum, r) => sum + r.cost);
+
+  /// 日均成本计算基数：
+  /// 开启「按累计价值计算」时返回累计价值（买入价 + 累计投入 + 维修保养），
+  /// 否则返回买入价。
+  double get costBasis =>
+      costBasisIncludesInvestment ? purchasePrice + cumulativeInvestment : purchasePrice;
 
   /// 最近一次卖出记录（按卖出日期取最新；无记录时 null）
   SaleRecord? get latestSale {
@@ -116,6 +127,7 @@ class Asset {
     List<SaleRecord>? saleRecords,
     List<InvestmentRecord>? investments,
     List<MaintenanceRecord>? maintenanceRecords,
+    bool? costBasisIncludesInvestment,
   }) {
     return Asset(
       id: id,
@@ -141,6 +153,8 @@ class Asset {
       saleRecords: saleRecords ?? this.saleRecords,
       investments: investments ?? this.investments,
       maintenanceRecords: maintenanceRecords ?? this.maintenanceRecords,
+      costBasisIncludesInvestment:
+          costBasisIncludesInvestment ?? this.costBasisIncludesInvestment,
     );
   }
 
@@ -166,6 +180,7 @@ class Asset {
         'maintenanceRecords': [
           for (final r in maintenanceRecords) r.toJson(),
         ],
+        'costBasisIncludesInvestment': costBasisIncludesInvestment,
       };
 
   factory Asset.fromJson(Map<String, dynamic> json) => Asset(
@@ -200,6 +215,8 @@ class Asset {
           for (final r in (json['maintenanceRecords'] as List? ?? const []))
             MaintenanceRecord.fromJson(r as Map<String, dynamic>),
         ],
+        costBasisIncludesInvestment:
+            json['costBasisIncludesInvestment'] as bool? ?? false,
       );
 }
 
